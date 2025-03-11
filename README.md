@@ -45,3 +45,19 @@ npm run build
 ```sh
 npm run lint
 ```
+
+## Chrome Extension Setup
+
+### Build the Chrome Extension
+
+```sh
+npm run build
+```
+
+### Load the Extension in Chrome
+
+1. Open Chrome and go to `chrome://extensions/`.
+2. Enable "Developer mode" by toggling the switch in the top right corner.
+3. Click on the "Load unpacked" button.
+4. Select the `dist` folder from the project directory.
+5. The extension should now be loaded and ready to use.
