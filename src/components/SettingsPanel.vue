@@ -326,6 +326,53 @@ async function handleClearAllMemory() {
   scrollbar-color: #54514d transparent;
 }
 
+/* Full screen on small devices */
+@media (max-width: 768px) {
+  .settings-overlay {
+    padding: 0;
+    align-items: stretch;
+    justify-content: stretch;
+  }
+
+  .settings-panel {
+    max-width: 100%;
+    height: 100vh;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
+/* Horizontal Navigation (for tall narrow screens) */
+@media (max-aspect-ratio: 3/5) {
+  .panel-content-wrapper {
+    flex-direction: column;
+  }
+
+  .settings-nav {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    overflow-y: hidden;
+    overflow-x: auto;
+  }
+
+  .nav-items {
+    flex-direction: row;
+    padding: 0.25rem 0.5rem;
+  }
+
+  .nav-item {
+    width: auto;
+  }
+
+  .nav-link {
+    margin: 0.25rem 0.125rem;
+    padding: 0.5rem 1rem;
+    justify-content: center;
+  }
+}
+
 /* Header */
 .panel-header {
   display: flex;
@@ -722,17 +769,21 @@ async function handleClearAllMemory() {
 
   /* Make nav buttons smaller and center the icon */
   .nav-link {
-    width: 40px; /* Reduced width */
-    height: 40px; /* Reduced height, keep it square */
-    padding: 0.6rem; /* Adjusted padding */
+    width: 40px;
+    /* Reduced width */
+    height: 40px;
+    /* Reduced height, keep it square */
+    padding: 0.6rem;
+    /* Adjusted padding */
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0.25rem auto; /* Center the button within the 60px nav item */
+    margin: 0.25rem auto;
+    /* Center the button within the 60px nav item */
   }
 
   .settings-panel {
-    height: 95vh;
+    height: 100vh;
   }
 
   .settings-content {
@@ -742,6 +793,27 @@ async function handleClearAllMemory() {
 
   .input-container {
     max-width: 100%;
+  }
+}
+
+/* Horizontal Navigation (for tall narrow screens) */
+@media (max-aspect-ratio: 3/5) {
+  .panel-content-wrapper {
+    flex-direction: column;
+  }
+
+  .settings-nav {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    overflow-y: hidden;
+    overflow-x: auto;
+  }
+
+  .nav-items {
+    flex-direction: row;
+    padding: 0.25rem 0.5rem;
   }
 }
 </style>
