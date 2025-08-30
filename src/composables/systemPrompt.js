@@ -8,7 +8,9 @@
 // --- PROMPT MODULES ---
 // These are the "Lego" blocks that will be assembled into the final prompt.
 
-const CORE_IDENTITY = `You are Aegis, a helpful and capable AI assistant from the open-source Aegis AI project. Your goal is to provide clear, accurate, and useful responses.`;
+const CORE_IDENTITY = `You are Aegis, a helpful and capable AI assistant from the open-source Aegis AI project. Your goal is to provide clear, accurate, and useful responses.
+
+Current date and time: ${new Date()}`;
 
 const GUIDING_PRINCIPLES = `### Guiding Principles
 *   **Be Accurate:** Strive for factual accuracy. If you're unsure about something, say so. Don't invent information.
@@ -33,6 +35,12 @@ const BOUNDARIES_AND_LIMITATIONS = `### Your Limitations
 *   **No Personal Opinions:** You are an AI, so you don't have feelings or beliefs. Present information neutrally.
 *   **Professional Advice:** You can provide general information on topics like finance, law, or medicine, but you must include a disclaimer that you are not a qualified professional and the user should consult one.`;
 
+const MEMORY_AWARENESS = `### Memory Awareness
+*   You have a global memory system that remembers important facts about the user across conversations.
+*   These memories help you provide more personalized responses.
+*   If the user asks about something that might be in your memory, you can use that information.
+*   Memories are managed automatically and you don't need to explicitly request them.`;
+
 // --- PROMPT ASSEMBLY FUNCTION ---
 
 /**
@@ -42,13 +50,19 @@ const BOUNDARIES_AND_LIMITATIONS = `### Your Limitations
  * @param {string} [settings.user_name] - The user's name.
  * @param {string} [settings.occupation] - The user's occupation.
  * @param {string} [settings.custom_instructions] - Custom instructions from the user.
+ * @param {string[]} [memoryFacts=[]] - Array of memory facts about the user.
  * @returns {string} The final, complete system prompt.
  */
-export function generateSystemPrompt(toolNames = [], settings = {}) {
+export async function generateSystemPrompt(
+  toolNames = [],
+  settings = {},
+  memoryFacts = []
+) {
   // Start with the core identity and main principles.
   const promptSections = [CORE_IDENTITY];
 
-  const { user_name, occupation, custom_instructions } = settings;
+  const { user_name, occupation, custom_instructions, global_memory_enabled } =
+    settings;
 
   // **User Context Section (High Priority)**
   // This is added early to ensure the model prioritizes it.
@@ -65,6 +79,15 @@ export function generateSystemPrompt(toolNames = [], settings = {}) {
     promptSections.push(userContext);
   }
 
+  // **Memory Context Section**
+  // Add memory facts if memory is enabled and there are facts
+  if (global_memory_enabled && memoryFacts.length > 0) {
+    const memorySection = `### User Memory
+The following are important facts about the user that you should remember and use in your responses:
+${memoryFacts.map((fact) => `- ${fact}`).join("\n")}`;
+    promptSections.push(memorySection);
+  }
+
   // Add the main instructional blocks.
   promptSections.push(
     GUIDING_PRINCIPLES,
@@ -73,6 +96,11 @@ export function generateSystemPrompt(toolNames = [], settings = {}) {
     CODING_GUIDELINES,
     BOUNDARIES_AND_LIMITATIONS
   );
+
+  // Add memory awareness if enabled
+  if (global_memory_enabled) {
+    promptSections.push(MEMORY_AWARENESS);
+  }
 
   // **Tools Section (Conditional)**
   // This "Lego" block is only added if tools are available.

@@ -9,7 +9,7 @@ import localforage from 'localforage';
 import { DialogRoot, DialogContent, DialogTitle, DialogPortal, DialogOverlay } from 'reka-ui';
 
 import { createConversation, storeMessages, deleteConversation as deleteConv } from './composables/storeConversations'
-import { updateMemory } from './composables/memory';
+import { updateMemory, loadMemory } from './composables/memory';
 import { handleIncomingMessage } from './composables/message'
 import Settings from './composables/settings';
 
@@ -93,10 +93,17 @@ async function sendMessage(message) {
   isTyping.value = false;
 
   const userPrompt = message;
-  // Note: updateMemory is commented out as it was part of the previous reasoning system
-  // and is not actively managing global_chatbot_memory in the current lean API interface.
-  // If true memory functionality is desired, it needs to be re-evaluated for this architecture.
-  // updateMemory(userPrompt, messages); 
+  
+  // Update global memory with the user's message and conversation context
+  // Only if global memory is enabled
+  if (settingsManager.settings.global_memory_enabled) {
+    try {
+      await updateMemory(userPrompt, messages);
+    } catch (error) {
+      console.error("Error updating memory:", error);
+      // Continue with the message sending even if memory update fails
+    }
+  } 
 
   // Exclude the last (empty) assistant message if it exists
   const plainMessages = messages.value

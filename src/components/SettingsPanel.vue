@@ -4,6 +4,7 @@ import Settings from "@/composables/settings";
 import { useDark, useToggle } from "@vueuse/core";
 import { SwitchRoot, SwitchThumb } from "reka-ui";
 import { Icon } from "@iconify/vue";
+import { loadMemory, deleteMemory, clearAllMemory } from "@/composables/memory";
 
 // Define props and emits
 const props = defineProps(["isOpen", "initialTab"]);
@@ -15,6 +16,7 @@ const currTab = ref("general");
 const isDark = useDark();
 const toggleDark = useToggle(isDark);
 const globalMemoryEnabled = ref(false);
+const memoryFacts = ref([]);
 
 // User profile fields
 const userName = ref("");
@@ -48,12 +50,16 @@ const navItems = [
 // --- Lifecycle Hooks ---
 onMounted(async () => {
   await settingsManager.loadSettings();
+  console.log("Loaded settings:", settingsManager.settings);
   userName.value = settingsManager.settings.user_name || "";
   occupation.value = settingsManager.settings.occupation || "";
   customInstructions.value = settingsManager.settings.custom_instructions || "";
-  // Load global memory setting (placeholder for now)
-  globalMemoryEnabled.value = false;
+  globalMemoryEnabled.value = settingsManager.settings.global_memory_enabled === true;
+
+  // Load memory facts
+  await loadMemoryFacts();
 });
+
 watch(
   () => props.isOpen,
   (newVal) => {
@@ -63,18 +69,68 @@ watch(
   }
 );
 
+watch(globalMemoryEnabled, (newVal) => {
+  console.log("globalMemoryEnabled changed to:", newVal);
+});
+
 // --- Functions ---
+async function loadMemoryFacts() {
+  memoryFacts.value = await loadMemory();
+}
+
 function closeSettings() {
   emit("close");
 }
 
-function saveSettings() {
+function toggleGlobalMemory(val) {
+  console.log("Toggling global memory from", globalMemoryEnabled.value, "to", val);
+  globalMemoryEnabled.value = val;
+}
+
+async function saveSettings() {
   // Save settings logic
   settingsManager.setSetting("user_name", userName.value);
   settingsManager.setSetting("occupation", occupation.value);
   settingsManager.setSetting("custom_instructions", customInstructions.value);
-  settingsManager.saveSettings();
+  settingsManager.setSetting("global_memory_enabled", globalMemoryEnabled.value);
+
+  console.log("Saving settings:", {
+    user_name: userName.value,
+    occupation: occupation.value,
+    custom_instructions: customInstructions.value,
+    global_memory_enabled: globalMemoryEnabled.value
+  });
+
+  await settingsManager.saveSettings();
+
+  // Reload memory facts after saving settings
+  await loadMemoryFacts();
+
+  // Close settings and refresh the page
   closeSettings();
+  location.reload();
+}
+
+async function removeMemoryFact(fact) {
+  try {
+    await deleteMemory(fact);
+    // Reload the memory facts after deletion
+    await loadMemoryFacts();
+  } catch (error) {
+    console.error("Error deleting memory fact:", error);
+  }
+}
+
+async function handleClearAllMemory() {
+  if (confirm("Are you sure you want to clear all memory? This cannot be undone.")) {
+    try {
+      await clearAllMemory();
+      // Reload the memory facts after clearing
+      await loadMemoryFacts();
+    } catch (error) {
+      console.error("Error clearing all memory:", error);
+    }
+  }
 }
 </script>
 
@@ -93,17 +149,16 @@ function saveSettings() {
 
       <div class="panel-content-wrapper">
         <!-- Vertical Navigation -->
-        <NavigationMenuRoot class="settings-nav" v-model="currTab">
+        <div class="settings-nav">
           <div class="nav-items">
-            <NavigationMenuItem v-for="item in navItems" :key="item.key" class="nav-item">
-              <NavigationMenuLink class="nav-link" :class="{ active: currTab === item.key }"
-                @click="currTab = item.key">
+            <div v-for="item in navItems" :key="item.key" class="nav-item">
+              <button class="nav-link" :class="{ active: currTab === item.key }" @click="currTab = item.key">
                 <Icon :icon="item.icon" width="18" height="18" />
                 <span class="nav-label">{{ item.label }}</span>
-              </NavigationMenuLink>
-            </NavigationMenuItem>
+              </button>
+            </div>
           </div>
-        </NavigationMenuRoot>
+        </div>
 
         <!-- Content Area -->
         <div class="panel-content">
@@ -136,7 +191,7 @@ function saveSettings() {
                 <p>Personalize your experience</p>
               </div>
 
-              <div class="setting-item">
+              <div class="setting-item textarea-item">
                 <div class="setting-info">
                   <h3>What should Aegis call you?</h3>
                   <p>Enter your name</p>
@@ -146,7 +201,7 @@ function saveSettings() {
                 </div>
               </div>
 
-              <div class="setting-item">
+              <div class="setting-item textarea-item">
                 <div class="setting-info">
                   <h3>What occupation do you have?</h3>
                   <p>Teacher, software engineer, student, etc.</p>
@@ -157,7 +212,7 @@ function saveSettings() {
                 </div>
               </div>
 
-              <div class="setting-item">
+              <div class="setting-item textarea-item">
                 <div class="setting-info">
                   <h3>What custom instructions do you want Aegis to follow?</h3>
                   <p>Be precise, be witty, etc.</p>
@@ -180,13 +235,38 @@ function saveSettings() {
               <div class="setting-item">
                 <div class="setting-info">
                   <h3>Global Memory</h3>
-                  <p>Remember conversations across sessions</p>
+                  <p>Remember important facts about you across conversations</p>
                 </div>
                 <div class="switch-container">
-                  <SwitchRoot class="switch-root" v-model:checked="globalMemoryEnabled">
+                  <SwitchRoot class="switch-root" :modelValue="globalMemoryEnabled"
+                    @update:modelValue="toggleGlobalMemory">
                     <SwitchThumb class="switch-thumb" />
                   </SwitchRoot>
                 </div>
+              </div>
+
+              <!-- Memory Facts List -->
+              <div v-if="globalMemoryEnabled && memoryFacts.length > 0" class="memory-facts-section">
+                <h3>Remembered Facts</h3>
+                <div class="memory-facts-list">
+                  <div v-for="(fact, index) in memoryFacts" :key="index" class="memory-fact-item">
+                    <span class="memory-fact-text">{{ fact }}</span>
+                    <button @click="removeMemoryFact(fact)" class="delete-memory-btn" aria-label="Delete memory">
+                      <Icon icon="material-symbols:delete" width="18" height="18" />
+                    </button>
+                  </div>
+                </div>
+                <div class="clear-memory-container">
+                  <button @click="handleClearAllMemory" class="clear-memory-btn">Clear All Memory</button>
+                </div>
+              </div>
+
+              <div v-else-if="globalMemoryEnabled" class="no-memory-message">
+                <p>No memories stored yet. Start a conversation to build your memory.</p>
+              </div>
+
+              <div v-else class="memory-disabled-message">
+                <p>Global memory is currently disabled. Enable it to start remembering facts about you.</p>
               </div>
             </div>
           </div>
@@ -383,6 +463,11 @@ function saveSettings() {
   gap: 0.75rem;
 }
 
+.setting-item.textarea-item {
+  flex-direction: column;
+  align-items: stretch;
+}
+
 .setting-info h3 {
   margin: 0 0 0.25rem;
   font-size: 1rem;
@@ -396,8 +481,16 @@ function saveSettings() {
   color: var(--text-secondary);
 }
 
+.setting-item.textarea-item .setting-info {
+  margin-bottom: 0.5rem;
+}
+
 .input-container {
   width: 100%;
+  max-width: 400px;
+}
+
+.setting-item.textarea-item .input-container {
   max-width: 400px;
 }
 
@@ -473,25 +566,103 @@ function saveSettings() {
   background-color: var(--bg-primary);
 }
 
-/* Info section */
-.info-section h3 {
-  margin: 0 0 0.5rem;
-  font-size: 1.25rem;
-  font-weight: 700;
+.clear-memory-container {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.clear-memory-btn {
+  padding: 0.5rem 1rem;
+  background: var(--destructive);
+  color: var(--destructive-foreground);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clear-memory-btn:hover {
+  background: var(--destructive-600);
+}
+
+/* Memory Facts List */
+.memory-facts-section {
+  margin-top: 1.5rem;
+}
+
+.memory-facts-section h3 {
+  margin: 0 0 1rem;
+  font-size: 1.125rem;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
-.version {
-  margin: 0 0 1rem;
-  font-size: 0.875rem;
-  color: var(--text-muted);
-  font-weight: 500;
+.memory-facts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
-.info-section p {
-  margin: 0 0 1.5rem;
+.memory-fact-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+}
+
+.memory-fact-item:hover {
+  border-color: var(--primary-300);
+}
+
+.memory-fact-text {
+  flex: 1;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  word-break: break-word;
+  padding-right: 1rem;
+}
+
+.delete-memory-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-md);
   color: var(--text-secondary);
-  line-height: 1.6;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.delete-memory-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--destructive);
+}
+
+.no-memory-message,
+.memory-disabled-message {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.no-memory-message p,
+.memory-disabled-message p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
 }
 
 /* Footer */
@@ -547,6 +718,17 @@ function saveSettings() {
 
   .nav-label {
     display: none;
+  }
+
+  /* Make nav buttons smaller and center the icon */
+  .nav-link {
+    width: 40px; /* Reduced width */
+    height: 40px; /* Reduced height, keep it square */
+    padding: 0.6rem; /* Adjusted padding */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0.25rem auto; /* Center the button within the 60px nav item */
   }
 
   .settings-panel {

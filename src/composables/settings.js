@@ -15,6 +15,9 @@ class Settings {
       user_name: null, // User's name
       occupation: null, // User's occupation
       custom_instructions: null, // Custom instructions for Aegis
+      
+      // --- Memory Settings ---
+      global_memory_enabled: false, // Whether global memory is enabled
     });
 
     // Add type information for better type safety
@@ -23,6 +26,7 @@ class Settings {
     // Create a non-reactive copy of default settings to avoid circular references
     this.defaultSettings = {
       version: 2,
+      global_memory_enabled: false, // Add default value for global memory
     };
 
     // Load settings asynchronously
