@@ -764,7 +764,7 @@ async function handleClearAllMemory() {
 }
 
 /* Horizontal Navigation (for tall narrow screens) */
-@media (max-aspect-ratio: 3/5) {
+@media (max-aspect-ratio: 2/3) {
   .panel-content-wrapper {
     flex-direction: column;
   }
