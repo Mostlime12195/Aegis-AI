@@ -326,52 +326,6 @@ async function handleClearAllMemory() {
   scrollbar-color: #54514d transparent;
 }
 
-/* Full screen on small devices */
-@media (max-width: 768px) {
-  .settings-overlay {
-    padding: 0;
-    align-items: stretch;
-    justify-content: stretch;
-  }
-
-  .settings-panel {
-    max-width: 100%;
-    height: 100dvh;
-    border-radius: 0;
-    box-shadow: none;
-  }
-}
-
-/* Horizontal Navigation (for tall narrow screens) */
-@media (max-aspect-ratio: 3/5) {
-  .panel-content-wrapper {
-    flex-direction: column;
-  }
-
-  .settings-nav {
-    width: 100%;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-    overflow-y: hidden;
-    overflow-x: auto;
-  }
-
-  .nav-items {
-    flex-direction: row;
-    padding: 0.25rem 0.5rem;
-  }
-
-  .nav-item {
-    width: auto;
-  }
-
-  .nav-link {
-    margin: 0.25rem 0.125rem;
-    padding: 0.5rem 1rem;
-    justify-content: center;
-  }
-}
 
 /* Header */
 .panel-header {
@@ -783,7 +737,20 @@ async function handleClearAllMemory() {
   }
 
   .settings-panel {
-    height: 100vh;
+    height: 100dvh;
+  }
+
+  .settings-overlay {
+    padding: 0;
+    align-items: stretch;
+    justify-content: stretch;
+  }
+
+  .settings-panel {
+    max-width: 100vw;
+    height: 100dvh;
+    border-radius: 0;
+    box-shadow: none;
   }
 
   .settings-content {
