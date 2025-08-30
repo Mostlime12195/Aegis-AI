@@ -131,7 +131,7 @@ defineExpose({ setMessage });
               :aria-label="`Change model, currently ${props.selectedModelName}`">
               <span class="model-name-display">{{
                 props.selectedModelName
-                }}</span>
+              }}</span>
               <svg class="dropdown-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
                 <polyline points="6 9 12 15 18 9"></polyline>
@@ -303,7 +303,6 @@ defineExpose({ setMessage });
 }
 
 /* --- MODEL SELECTOR POPOVER --- */
-/* CHANGE: Added wrapper with relative positioning */
 .model-selector-wrapper {
   position: relative;
 }
@@ -315,12 +314,11 @@ defineExpose({ setMessage });
 
 .model-list {
   list-style: none;
-  padding: 16px 0px;
+  padding: 8px;
   margin: 0;
   overflow-y: auto;
-  scrollbar-gutter: stable both-edges;
   background: var(--popover-bg);
-  border-radius: 12px;
+  border-radius: 16px;
 }
 
 .model-list-item {
@@ -360,13 +358,13 @@ defineExpose({ setMessage });
 .selected-indicator {
   color: var(--primary-foreground);
   flex-shrink: 0;
-  margin-left: 12px;
   transform: translateY(3px);
+  margin-left: 12px;
 }
 
 .selected-indicator svg {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
 }
 
 /* Animation for popover */
