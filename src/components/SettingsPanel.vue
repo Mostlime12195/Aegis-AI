@@ -336,7 +336,7 @@ async function handleClearAllMemory() {
 
   .settings-panel {
     max-width: 100%;
-    height: 100vh;
+    height: 100dvh;
     border-radius: 0;
     box-shadow: none;
   }
