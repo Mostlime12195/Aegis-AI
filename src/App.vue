@@ -27,7 +27,6 @@ injectSpeedInsights();
 
 
 const isDark = useDark();
-const toggleDark = useToggle(isDark);
 
 const messages = ref([]);
 const isLoading = ref(false);
@@ -93,7 +92,7 @@ async function sendMessage(message) {
   isTyping.value = false;
 
   const userPrompt = message;
-  
+
   // Update global memory with the user's message and conversation context
   // Only if global memory is enabled
   if (settingsManager.settings.global_memory_enabled) {
@@ -103,7 +102,7 @@ async function sendMessage(message) {
       console.error("Error updating memory:", error);
       // Continue with the message sending even if memory update fails
     }
-  } 
+  }
 
   // Exclude the last (empty) assistant message if it exists
   const plainMessages = messages.value
@@ -566,7 +565,7 @@ button:hover {
 }
 
 .global-menu-toggle:hover {
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--btn-hover);
   transform: scale(1.05);
 }
 

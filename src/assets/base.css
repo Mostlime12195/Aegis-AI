@@ -59,6 +59,9 @@
   --bg-secondary: var(--elevated-surface);
   --bg-tertiary: var(--muted-border);
 
+  --btn-hover: hsla(16, 13%, 72%, 0.5);
+  --btn-hover-2: hsla(17, 100%, 96%, 0.6);
+
   /* Chat panel colors */
   --text-primary-light: var(--text-primary);
   --text-secondary-light: var(--text-secondary);
@@ -92,7 +95,7 @@
   --popover-border: var(--border);
   --popover-shadow: 0 4px 16px var(--shadow-elev);
   --popover-header-text: var(--text-primary);
-  --popover-list-item-bg-hover: var(--muted-border);
+  --popover-list-item-bg-hover: var(--border);
   --popover-list-item-text: var(--text-primary);
   --popover-list-item-selected-bg: var(--border);
   --popover-list-item-selected-text: var(--text-primary);
@@ -178,6 +181,9 @@
   --bg-primary: var(--surface);
   --bg-secondary: var(--elevated-surface);
   --bg-tertiary: var(--muted-border);
+
+  --btn-hover: hsla(15, 6%, 27%, 0.4);
+  --btn-hover-2: hsla(15, 6%, 27%, 0.4);
 
   /* Chat panel colors for dark mode */
   --text-primary-dark: var(--text-primary);

@@ -254,7 +254,7 @@ defineExpose({ setMessage });
 }
 
 .model-selector-btn:hover {
-  background-color: var(--btn-model-selector-bg);
+  background-color: var(--btn-hover);
 }
 
 .model-name-display {
@@ -341,11 +341,11 @@ defineExpose({ setMessage });
 }
 
 .model-list-item:hover {
-  background-color: var(--popover-list-item-bg-hover);
+  background-color: var(--btn-hover);
 }
 
 .model-list-item.selected {
-  background-color: var(--popover-list-item-selected-bg);
+  background-color: var(--btn-hover);
   color: var(--popover-list-item-selected-text);
   font-weight: 500;
 }
@@ -356,7 +356,7 @@ defineExpose({ setMessage });
 }
 
 .selected-indicator {
-  color: var(--primary-foreground);
+  color: var(--primary-background);
   flex-shrink: 0;
   transform: translateY(3px);
   margin-left: 12px;

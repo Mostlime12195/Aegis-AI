@@ -187,23 +187,18 @@ function closeSidebar() {
 }
 
 .conversation-button:hover {
-  background: var(--bg-secondary);
+  background: var(--btn-hover-2);
   color: var(--primary);
 }
 
 .conversation-button.active {
-  background: var(--bg-secondary);
+  background: var(--btn-hover-2);
   color: var(--primary);
   font-weight: 700;
 }
 
 .dark .conversation-button {
   color: var(--text-secondary);
-}
-
-.dark .conversation-button.active {
-  background: var(--bg-secondary);
-  color: var(--primary);
 }
 
 .delete-button.no-hover {
@@ -236,13 +231,15 @@ function closeSidebar() {
   -webkit-tap-highlight-color: transparent;
 }
 
-.settings-button:hover {
-  background: rgba(0, 0, 0, 0.1);
-  transform: scale(1.05);
+.settings-button {
+  border-radius: 8px;
+  height: 44px;
+  width: 44px;
 }
 
-.dark .settings-button:hover {
-  background: rgba(255, 255, 255, 0.1);
+.settings-button:hover {
+  background: var(--btn-hover);
+  transform: scale(1.05);
 }
 
 @media (min-width: 900px) {

@@ -153,7 +153,7 @@ async function handleClearAllMemory() {
           <div class="nav-items">
             <div v-for="item in navItems" :key="item.key" class="nav-item">
               <button class="nav-link" :class="{ active: currTab === item.key }" @click="currTab = item.key">
-                <Icon :icon="item.icon" width="18" height="18" />
+                <Icon :icon="item.icon" width="24" height="24" />
                 <span class="nav-label">{{ item.label }}</span>
               </button>
             </div>
@@ -352,7 +352,7 @@ async function handleClearAllMemory() {
   width: 2.5rem;
   height: 2.5rem;
   border: none;
-  background: var(--bg-secondary);
+  background: var(--btn-hover);
   border-radius: var(--radius-md);
   color: var(--text-secondary);
   cursor: pointer;
@@ -361,7 +361,7 @@ async function handleClearAllMemory() {
 }
 
 .close-btn:hover {
-  background: var(--bg-tertiary);
+  background: var(--btn-hover);
   color: var(--text-primary);
 }
 
@@ -410,12 +410,12 @@ async function handleClearAllMemory() {
 }
 
 .nav-link:hover {
-  background: var(--bg-secondary);
+  background: var(--btn-hover-2);
   color: var(--text-primary);
 }
 
 .nav-link.active {
-  background: var(--bg-secondary);
+  background: var(--btn-hover-2);
   color: var(--primary);
 }
 
@@ -697,7 +697,7 @@ async function handleClearAllMemory() {
 }
 
 .cancel-btn:hover {
-  background: var(--bg-secondary);
+  background: var(--btn-hover);
   color: var(--text-primary);
 }
 
