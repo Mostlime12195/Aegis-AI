@@ -1,10 +1,10 @@
 <template>
-  <div>
+  <div class="no-padding">
     <!-- Static container for completed elements -->
-    <div ref="staticContainer" class="markdown-content no-padding"></div>
+    <div ref="staticContainer" class="no-padding markdown-content"></div>
 
     <!-- Streaming container for current element being rendered -->
-    <div ref="streamingContainer" class="markdown-content no-padding"></div>
+    <div ref="streamingContainer" class="no-padding markdown-content"></div>
   </div>
 </template>
 

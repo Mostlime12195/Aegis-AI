@@ -342,10 +342,9 @@ defineExpose({ scrollToEnd, isAtBottom });
                 <div v-else-if="message.complete" class="markdown-content"
                   v-html="renderMessageContent(message.content)"></div>
                 <div v-else>
-                  <StreamingMessage :content="message.content" :is-complete="message.complete" class="markdown-content"
+                  <StreamingMessage :content="message.content" :is-complete="message.complete"
                     @complete="onStreamingMessageComplete(message.id)" />
                 </div>
-                <span v-if="!message.complete && !message.reasoning" class="cursor">|</span>
               </div>
             </div>
           </div>
@@ -490,11 +489,6 @@ defineExpose({ scrollToEnd, isAtBottom });
   max-width: 800px;
   margin: 0 auto;
   transition: all 0.3s cubic-bezier(.4, 1, .6, 1);
-}
-
-/* Add proper spacing for streaming messages */
-.message.assistant .bubble .markdown-content {
-  padding: 12px 16px;
 }
 
 .dark .message.assistant .bubble {

@@ -4,12 +4,12 @@ import 'highlight.js/styles/github.css';
 import 'highlight.js/styles/github-dark.css';
 import { inject } from "@vercel/analytics"
 import { injectSpeedInsights } from '@vercel/speed-insights';
-import { useDark, useToggle } from "@vueuse/core";
+import { useDark } from "@vueuse/core";
 import localforage from 'localforage';
-import { DialogRoot, DialogContent, DialogTitle, DialogPortal, DialogOverlay } from 'reka-ui';
+import { DialogRoot, DialogContent, DialogPortal, DialogOverlay } from 'reka-ui';
 
 import { createConversation, storeMessages, deleteConversation as deleteConv } from './composables/storeConversations'
-import { updateMemory, loadMemory } from './composables/memory';
+import { updateMemory } from './composables/memory';
 import { handleIncomingMessage } from './composables/message'
 import Settings from './composables/settings';
 

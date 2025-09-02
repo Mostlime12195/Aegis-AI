@@ -1,11 +1,10 @@
 import localforage from "localforage";
-import { toRaw } from "vue";
 import { emitter } from "@/emitter";
 
 export async function createConversation(plainMessages, lastUpdated) {
   const conversationId = crypto.randomUUID();
 
-  const systemPrompt = `You are an AI with the task of shortening and summarising messages into a short title. You must summarise the given messages based on their content into a 20 character title. Each conversation is between a user and an AI. The messages provided to you are not the only messages of the conversation. The title must be general enough to apply to what you think the conversation will be about. Do not return any filler or extra words or characters.`;
+  const systemPrompt = `You are an AI with the task of shortening and summarising messages into a short title. You must summarise the given messages based on their content into at most a 20 character title. Each conversation is between a user and an AI chatbot. The messages provided to you are the first messages of the conversation. The title must be general enough to apply to what you think the conversation will be about. Only output the title, without any additional explainations or commentary.`;
 
   // Ensure that the messages are in a format suitable for storage,
   // Without this, an error occurs.
@@ -25,6 +24,8 @@ export async function createConversation(plainMessages, lastUpdated) {
     // Add any other properties your message objects might have
   }));
 
+  let title = "Untitled";
+
   try {
     const response = await fetch("https://ai.hackclub.com/chat/completions", {
       method: "POST",
@@ -39,17 +40,18 @@ export async function createConversation(plainMessages, lastUpdated) {
         ],
         model: "moonshotai/kimi-k2-instruct",
         stream: false,
-        reasoning_effort: "none",
       }),
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    if (response.ok) {
+      const data = await response.json();
+      title = data.choices?.[0]?.message?.content || "Untitled";
     }
+  } catch (error) {
+    console.error("Error generating title:", error);
+  }
 
-    const data = await response.json();
-    const title = data.choices?.[0]?.message?.content || "Untitled";
-
+  try {
     // Store full conversation
     await localforage.setItem(`conversation_${conversationId}`, {
       title,
