@@ -190,7 +190,6 @@ export async function* handleIncomingMessage(
               }
             } catch (parseError) {
               // Skip lines that aren't valid JSON
-              console.warn("Failed to parse stream data:", data);
             }
           }
         }

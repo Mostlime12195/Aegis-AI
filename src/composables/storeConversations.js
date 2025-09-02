@@ -37,6 +37,7 @@ export async function createConversation(plainMessages, lastUpdated) {
             content: msg.content,
           })),
         ],
+        model: "moonshotai/kimi-k2-instruct",
         stream: false,
         reasoning_effort: "none",
       }),
@@ -74,7 +75,7 @@ export async function createConversation(plainMessages, lastUpdated) {
 export async function storeMessages(
   conversationId,
   plainMessages,
-  lastUpdated,
+  lastUpdated
 ) {
   // Attempt to get the existing conversation data.
   const data = await localforage.getItem(`conversation_${conversationId}`);

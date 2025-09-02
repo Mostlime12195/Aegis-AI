@@ -47,7 +47,6 @@ const settingsManager = reactive(new Settings());
 
 onMounted(async () => {
   await settingsManager.loadSettings();
-  console.log("Settings loaded in onMounted:", settingsManager.settings);
   // Make sure selected_model_id is set to a default if not already set
   if (!settingsManager.settings.selected_model_id) {
     settingsManager.settings.selected_model_id = "qwen/qwen3-32b"; // Default model ID
@@ -56,7 +55,6 @@ onMounted(async () => {
   if (!settingsManager.settings.selected_model_name) {
     settingsManager.settings.selected_model_name = "Qwen 3 32B"; // Default model name
   }
-  console.log("Selected model name set to:", settingsManager.settings.selected_model_name);
 });
 
 /**
@@ -93,17 +91,6 @@ async function sendMessage(message) {
 
   const userPrompt = message;
 
-  // Update global memory with the user's message and conversation context
-  // Only if global memory is enabled
-  if (settingsManager.settings.global_memory_enabled) {
-    try {
-      await updateMemory(userPrompt, messages);
-    } catch (error) {
-      console.error("Error updating memory:", error);
-      // Continue with the message sending even if memory update fails
-    }
-  }
-
   // Exclude the last (empty) assistant message if it exists
   const plainMessages = messages.value
     .filter(msg => msg.complete)
@@ -119,6 +106,17 @@ async function sendMessage(message) {
     timestamp: new Date(),
     complete: true,
   });
+
+  // Update global memory with the user's message and conversation context
+  // Run in background without blocking the UI
+  if (settingsManager.settings.global_memory_enabled) {
+    // Non-blocking memory update - don't await this
+    updateMemory(userPrompt, messages)
+      .catch(error => {
+        console.error("Error updating memory:", error);
+        // Silently handle memory update errors to avoid disrupting chat flow
+      });
+  }
 
   const assistantMsg = {
     id: generateId(),
@@ -153,8 +151,6 @@ async function sendMessage(message) {
   // Get current model details from the settingsManager (reactive instance)
   const { availableModels } = await import('./composables/availableModels');
   const selectedModelDetails = availableModels.find(model => model.id === settingsManager.settings.selected_model_id);
-  console.log("Selected model details:", selectedModelDetails);
-  console.log("Selected model ID:", settingsManager.settings.selected_model_id);
 
   if (!selectedModelDetails) {
     console.error("No model selected or model details not found. Aborting message send.");
@@ -250,10 +246,8 @@ async function sendMessage(message) {
       }
     }
 
-    console.log('Final message before storage:', JSON.stringify(assistantMsg));
     // Make sure we have a copy of the final message
     messages.value[messages.value.length - 1] = { ...assistantMsg };
-    console.log('Messages array before storage:', JSON.stringify(messages.value));
     await storeMessages(currConvo.value, messages.value, new Date());
     await nextTick();
   }
@@ -405,8 +399,6 @@ function openSettingsPanel(tabKey = 'general') {
 </template>
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
-
 a:hover {
   background-color: transparent;
 }

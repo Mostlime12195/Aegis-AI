@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@phosphor-icons/vue": "^2.2.1",
-    "@types/katex": "^0.16.7",
     "@vercel/analytics": "^1.5.0",
     "@vercel/speed-insights": "^1.2.0",
     "@vueuse/core": "^12.8.2",

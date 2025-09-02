@@ -6,16 +6,34 @@ import MarkdownIt from "markdown-it";
 import markdownItFootnote from "markdown-it-footnote";
 import markdownItTaskLists from "markdown-it-task-lists";
 import markdownItKatex from "markdown-it-katex";
-import "katex/dist/katex.min.css";
+import StreamingMessage from './StreamingMessage.vue';
 
-const props = defineProps([
-  "currConvo",
-  "currMessages",
-  "isLoading",
-  "conversationTitle",
-  "showWelcome",
-  "isDark"
-]);
+const props = defineProps({
+  currConvo: {
+    type: [String, Number, Object],
+    default: null
+  },
+  currMessages: {
+    type: Array,
+    default: () => []
+  },
+  isLoading: {
+    type: Boolean,
+    default: false
+  },
+  conversationTitle: {
+    type: String,
+    default: ''
+  },
+  showWelcome: {
+    type: Boolean,
+    default: false
+  },
+  isDark: {
+    type: Boolean,
+    default: false
+  }
+});
 const emit = defineEmits(["send-message", "set-message", "scroll"]);
 
 const langExtMap = {
@@ -40,25 +58,41 @@ const langExtMap = {
   sql: "sql",
   xml: "xml",
   yaml: "yml",
-};
+}
 
-// --- 2. Code Block Redesign: Use markdown-it's fence rule for full control ---
+// Initialize markdown-it with plugins (without markdown-it-katex)
 const md = new MarkdownIt({
   html: true,
   linkify: true,
   typographer: true,
+  highlight: function (str, lang) {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return hljs.highlight(str, { language: lang }).value;
+      } catch (__) { }
+    }
+    return '';
+  }
 })
   .use(markdownItFootnote)
   .use(markdownItTaskLists, { enabled: false, label: true, bulletMarker: "-" })
-  .use(markdownItKatex);
+  .use(markdownItKatex, { "throwOnError": false, "errorColor": " #cc0000" });
 
 
-// Override the fence rule to inject custom wrapper and header
-md.renderer.rules.fence = (tokens, idx, options, env, self) => {
+// Add custom fence rule for code blocks
+const defaultFence = md.renderer.rules.fence || function (tokens, idx, options, env, self) {
+  return self.renderToken(tokens, idx, options);
+}
+
+md.renderer.rules.fence = function (tokens, idx, options, env, self) {
   const token = tokens[idx];
-  const code = token.content.trim();
-  const lang = token.info ? token.info.split(/(\s+)/g)[0] : "text";
-  const langDisplay = lang || "text";
+  const info = token.info ? md.utils.unescapeAll(token.info).trim() : '';
+  const langName = info ? info.split(/\s+/g)[0] : '';
+
+  // Handle code blocks
+  const code = token.content;
+  const lang = langName || 'text';
+  const langDisplay = lang;
 
   let highlightedCode;
   if (lang && hljs.getLanguage(lang)) {
@@ -74,25 +108,23 @@ md.renderer.rules.fence = (tokens, idx, options, env, self) => {
     highlightedCode = md.utils.escapeHtml(code);
   }
 
-  // This structure prevents markdown-it from adding extra <p> tags and gives us full control.
-  return `
-  <div class="code-block-wrapper">
-    <div class="code-block-header">
-      <span class="code-language">${langDisplay}</span>
-      <div class="code-actions">
-        <button class="code-action-button" onclick="downloadCode(event.currentTarget, '${langDisplay}')" title="Download file">
-          <PhDownloadSimple />
-          <span>Download</span>
-        </button>
-        <button class="code-action-button" onclick="copyCode(event.currentTarget)" title="Copy code">
-          <PhCopy />
-          <span>Copy</span>
-        </button>
-      </div>
-    </div>
-  <pre><code class="hljs ${lang}">${highlightedCode}</code></pre>
-</div>`;
-};
+  // Build HTML using string concatenation to avoid template literal parsing issues
+  return ''
+    + '<div class="code-block-wrapper">'
+    + '<div class="code-block-header">'
+    + '<span class="code-language">' + langDisplay + '</span>'
+    + '<div class="code-actions">'
+    + '<button class="code-action-button" onclick="window.downloadCode(event.currentTarget, \'' + langDisplay + '\')" title="Download file">'
+    + '<span>Download</span>'
+    + '</button>'
+    + '<button class="code-action-button" onclick="window.copyCode(event.currentTarget)" title="Copy code">'
+    + '<span>Copy</span>'
+    + '</button>'
+    + '</div>'
+    + '</div>'
+    + '<pre><code class="hljs ' + md.utils.escapeHtml(lang) + '">' + highlightedCode + '</code></pre>'
+    + '</div>';
+}
 
 const liveReasoningTimers = reactive({});
 const timerIntervals = {};
@@ -104,13 +136,12 @@ function formatDuration(ms) {
 
 const isAtBottom = ref(true);
 const chatWrapper = ref(null);
-// Add timestamps and debug markers to messages for visualization
+
 const messages = computed(() => {
   if (!props.currMessages) return [];
 
   return props.currMessages.map((msg) => {
     const isNew = !msg.timestamp || Date.now() - msg.timestamp < 5000;
-
     return { ...msg, isNew };
   });
 });
@@ -132,12 +163,10 @@ const handleScroll = () => {
       chatWrapper.value.clientHeight,
     ) < 10;
 
-  // Emit scroll event with information about whether user is at top
   const isAtTop = chatWrapper.value.scrollTop === 0;
   emit('scroll', { isAtTop });
 };
 
-// Watch for changes in the messages array
 watch(
   messages,
   (newMessages) => {
@@ -145,41 +174,30 @@ watch(
       nextTick(() => scrollToEnd("instant"));
     }
 
-    // Process each message
     newMessages.forEach((msg) => {
-      // Clear any existing timer for this message to prevent duplicates
       if (timerIntervals[msg.id]) {
         clearInterval(timerIntervals[msg.id]);
         delete timerIntervals[msg.id];
       }
 
-      // Handle assistant messages with reasoning
       if (msg.role === "assistant" && msg.reasoning) {
-        // For completed messages, show the final duration
         if (msg.complete) {
-          // If we already have a calculated duration, use it
           if (msg.reasoningDuration) {
             liveReasoningTimers[msg.id] =
               `Thought for ${formatDuration(msg.reasoningDuration)}`;
           }
-          // If we have start and end times, calculate the duration
           else if (msg.reasoningStartTime && msg.reasoningEndTime) {
             const duration =
               msg.reasoningEndTime.getTime() - msg.reasoningStartTime.getTime();
             liveReasoningTimers[msg.id] =
               `Thought for ${formatDuration(duration)}`;
           }
-          // If we only have a start time, but the message is complete,
-          // it means the message was completed before we could set the end time
           else if (msg.reasoningStartTime) {
-            // This shouldn't happen in normal operation, but let's handle it
             liveReasoningTimers[msg.id] = "Thought for a moment";
           }
           return;
         }
 
-        // For incomplete messages that are still thinking
-        // Only start a timer if one doesn't already exist
         if (!timerIntervals[msg.id]) {
           const startTime = msg.reasoningStartTime || new Date();
           timerIntervals[msg.id] = setInterval(() => {
@@ -191,7 +209,6 @@ watch(
       }
     });
 
-    // Clean up timers for messages that no longer exist
     const currentMessageIds = newMessages.map((msg) => msg.id);
     Object.keys(timerIntervals).forEach((timerId) => {
       if (!currentMessageIds.includes(timerId)) {
@@ -208,7 +225,6 @@ watch(
   () => props.currConvo,
   (newConvo, oldConvo) => {
     if (newConvo && newConvo !== oldConvo) {
-      // When conversation changes, scroll to bottom after next tick
       nextTick(() => {
         requestAnimationFrame(() => {
           scrollToEnd("instant");
@@ -220,6 +236,10 @@ watch(
 
 onMounted(() => {
   nextTick(() => scrollToEnd("instant"));
+
+  // Make functions available globally
+  window.copyCode = copyCode;
+  window.downloadCode = downloadCode;
 });
 
 function copyCode(button) {
@@ -256,6 +276,32 @@ function downloadCode(button, lang) {
   URL.revokeObjectURL(url);
 };
 
+const renderMessageContent = (content) => {
+  // First render Markdown
+  let html = md.render(content || '');
+
+  // For streaming content, we need to handle processing in a controlled way
+  // This will be handled by the watch function that monitors message updates
+
+  return html;
+};
+
+const renderReasoningContent = (content) => {
+  // First render Markdown
+  let html = md.render(content || '');
+
+  // For reasoning content, we need to handle processing in a controlled way
+  // This will be handled by the watch function that monitors message updates
+
+  return html;
+};
+
+// Function to handle when a streaming message is complete
+function onStreamingMessageComplete(messageId) {
+}
+
+// Remove the old watcher for message changes since we're handling it differently now
+
 defineExpose({ scrollToEnd, isAtBottom });
 </script>
 
@@ -265,9 +311,8 @@ defineExpose({ scrollToEnd, isAtBottom });
       <h1 v-if="messages.length < 1" class="welcome-message">What do you need help with?</h1>
       <div class="messages-layer">
         <template v-for="message in messages" :key="message.id">
-          <div class="message" :class="message.role">
+          <div class="message" :class="message.role" :data-message-id="message.id">
             <div class="message-content">
-              <!-- 1. Redesigned Reasoning Display -->
               <details v-if="message.role === 'assistant' && message.reasoning" class="reasoning-details" open>
                 <summary class="reasoning-summary">
                   <span class="reasoning-toggle-icon">
@@ -276,7 +321,7 @@ defineExpose({ scrollToEnd, isAtBottom });
                   <span class="reasoning-text">
                     <span v-if="liveReasoningTimers[message.id]">{{
                       liveReasoningTimers[message.id]
-                      }}</span>
+                    }}</span>
                     <span v-else-if="message.reasoningDuration > 0">Thought for
                       {{ formatDuration(message.reasoningDuration) }}</span>
                     <span v-else-if="
@@ -287,15 +332,21 @@ defineExpose({ scrollToEnd, isAtBottom });
                   </span>
                 </summary>
                 <div class="reasoning-content-wrapper">
-                  <div class="reasoning-content markdown-content" v-html="md.render(message.reasoning)"></div>
+                  <div class="reasoning-content markdown-content" v-html="renderReasoningContent(message.reasoning)">
+                  </div>
                 </div>
               </details>
 
-              <span class="bubble">
+              <div class="bubble">
                 <div v-if="message.role == 'user'">{{ message.content }}</div>
-                <div class="markdown-content" v-else v-html="md.render(message.content)"></div>
+                <div v-else-if="message.complete" class="markdown-content"
+                  v-html="renderMessageContent(message.content)"></div>
+                <div v-else>
+                  <StreamingMessage :content="message.content" :is-complete="message.complete" class="markdown-content"
+                    @complete="onStreamingMessageComplete(message.id)" />
+                </div>
                 <span v-if="!message.complete && !message.reasoning" class="cursor">|</span>
-              </span>
+              </div>
             </div>
           </div>
         </template>
@@ -305,25 +356,15 @@ defineExpose({ scrollToEnd, isAtBottom });
 </template>
 
 <style>
-/* Define CSS variables for this component */
 .chat-wrapper {
-  /* Bubble colors */
   --bubble-user-bg: var(--primary);
   --bubble-user-text: var(--primary-foreground);
-
-  /* Text colors for light mode */
   --text-primary-light: var(--text-primary);
   --text-secondary-light: var(--text-secondary);
-
-  /* Text colors for dark mode */
   --text-primary-dark: var(--text-primary);
   --text-secondary-dark: var(--text-secondary);
-
-  /* Reasoning border colors */
   --reasoning-border-light: var(--border);
   --reasoning-border-dark: var(--border);
-
-  /* Code block colors - Dark mode (default) */
   --code-bg: #0d1117;
   --code-header-bg: #161b22;
   --code-border: #30363d;
@@ -331,40 +372,31 @@ defineExpose({ scrollToEnd, isAtBottom });
   --code-action-text: #8b949e;
   --code-action-hover-bg: rgba(173, 186, 199, 0.1);
   --code-action-hover-text: #c9d1d9;
-
-  /* Code block colors - Light mode */
-  --code-bg-light: #e4dfd8; /* Subtle orange/yellow hue, slightly darker than background (#ebe7e2) */
-  --code-header-bg-light: #ddd7d1; /* Slightly darker than code-bg-light */
-  --code-border-light: #cabdb6; /* Same as --border */
-  --code-text-light: #3a2119; /* Same as --text-primary */
-  --code-action-text-light: #63564b; /* Same as --text-secondary */
-  --code-action-hover-bg-light: rgba(192, 74, 44, 0.1); /* Subtle primary color hover effect */
-  --code-action-hover-text-light: #3a2119; /* Same as --text-primary */
-  
-  /* Code highlight colors - Light mode (darker for better contrast) */
-  --code-comment-light: #6b7280; /* Gray for comments */
-  --code-keyword-light: #9d1d04; /* Darker burnt sienna for keywords */
-  --code-function-light: #2d4a7e; /* Darker blue for functions */
-  --code-string-light: #9d5b04; /* Darker orange for strings */
-  --code-number-light: #106f5d; /* Darker teal for numbers */
-  --code-variable-light: #5b3a88; /* Darker purple for variables */
-  --code-property-light: #046d3d; /* Darker green for properties */
-
-  /* Code highlight colors - Dark mode */
-  --code-comment-dark: #8b949e; /* Gray for comments */
-  --code-keyword-dark: #ff7b72; /* Red for keywords */
-  --code-function-dark: #d2a8ff; /* Purple for functions */
-  --code-string-dark: #a5d6ff; /* Blue for strings */
-  --code-number-dark: #79c0ff; /* Light blue for numbers */
-  --code-variable-dark: #ffa657; /* Orange for variables */
-  --code-property-dark: #7ee787; /* Green for properties */
-
-  /* Base layout */
+  --code-bg-light: #e4dfd8;
+  --code-header-bg-light: #ddd7d1;
+  --code-border-light: #cabdb6;
+  --code-text-light: #3a2119;
+  --code-action-text-light: #63564b;
+  --code-action-hover-bg-light: rgba(192, 74, 44, 0.1);
+  --code-action-hover-text-light: #3a2119;
+  --code-comment-light: #6b7280;
+  --code-keyword-light: #9d1d04;
+  --code-function-light: #2d4a7e;
+  --code-string-light: #9d5b04;
+  --code-number-light: #106f5d;
+  --code-variable-light: #5b3a88;
+  --code-property-light: #046d3d;
+  --code-comment-dark: #8b949e;
+  --code-keyword-dark: #ff7b72;
+  --code-function-dark: #d2a8ff;
+  --code-string-dark: #a5d6ff;
+  --code-number-dark: #79c0ff;
+  --code-variable-dark: #ffa657;
+  --code-property-dark: #7ee787;
   flex: 1;
   overflow-y: auto;
   position: relative;
   padding-bottom: 120px;
-  /* Add padding for fixed message form */
   width: 100%;
   height: 100%;
   box-sizing: border-box;
@@ -398,7 +430,7 @@ defineExpose({ scrollToEnd, isAtBottom });
 }
 
 .message {
-  display: flex;
+  display: block;
   width: 100%;
   max-width: 800px;
   margin: 1.5rem auto;
@@ -408,6 +440,8 @@ defineExpose({ scrollToEnd, isAtBottom });
 
 .message.user {
   justify-content: flex-end;
+  display: flex;
+  width: 100%;
 }
 
 .message-content {
@@ -421,9 +455,13 @@ defineExpose({ scrollToEnd, isAtBottom });
 .message.user .message-content {
   align-items: flex-end;
   max-width: 85%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .bubble {
+  display: block;
   padding: 12px 16px;
   border-radius: 18px;
   line-height: 1.5;
@@ -441,6 +479,8 @@ defineExpose({ scrollToEnd, isAtBottom });
   max-width: calc(800px * 0.85);
   width: fit-content;
   transition: all 0.3s cubic-bezier(.4, 1, .6, 1);
+  text-align: left;
+  /* Ensure text alignment within the bubble */
 }
 
 .message.assistant .bubble {
@@ -452,11 +492,15 @@ defineExpose({ scrollToEnd, isAtBottom });
   transition: all 0.3s cubic-bezier(.4, 1, .6, 1);
 }
 
+/* Add proper spacing for streaming messages */
+.message.assistant .bubble .markdown-content {
+  padding: 12px 16px;
+}
+
 .dark .message.assistant .bubble {
   color: var(--text-primary-dark);
 }
 
-/* --- 1. Reasoning Display Styling --- */
 .reasoning-details {
   background: none;
   border: none;
@@ -523,7 +567,6 @@ defineExpose({ scrollToEnd, isAtBottom });
   display: none;
 }
 
-/* --- 2. Code Block Styling --- */
 .markdown-content .code-block-wrapper {
   background-color: var(--code-bg-light);
   border: 1px solid var(--code-border-light);
@@ -622,7 +665,6 @@ defineExpose({ scrollToEnd, isAtBottom });
   margin: 0;
   padding: 0;
   overflow-x: auto;
-  /* Horizontal scroll only */
 }
 
 .code-block-wrapper pre code.hljs {
@@ -638,7 +680,6 @@ defineExpose({ scrollToEnd, isAtBottom });
   color: var(--code-text);
 }
 
-/* Generic Markdown Content Styling */
 .markdown-content {
   color: var(--text-primary-light);
   width: 100%;
@@ -706,7 +747,6 @@ defineExpose({ scrollToEnd, isAtBottom });
   padding-left: 2em;
 }
 
-/* Task list styling */
 .markdown-content li.task-list-item {
   list-style-type: none;
   position: relative;
@@ -723,9 +763,9 @@ defineExpose({ scrollToEnd, isAtBottom });
   background-color: var(--background);
   transition: all 0.2s ease-in-out;
   margin-top: 0.2em;
-  pointer-events: none; /* Make non-interactable */
+  pointer-events: none;
   cursor: default;
-  appearance: none; /* Remove default styling */
+  appearance: none;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
@@ -735,7 +775,7 @@ defineExpose({ scrollToEnd, isAtBottom });
 }
 
 .markdown-content li.task-list-item input[type="checkbox"]:checked {
-  background-color: #3fb950; /* GitHub green */
+  background-color: #3fb950;
   border-color: #3fb950;
 }
 
@@ -751,18 +791,16 @@ defineExpose({ scrollToEnd, isAtBottom });
   transform: rotate(45deg);
 }
 
-.markdown-content li.task-list-item input[type="checkbox"] + span {
+.markdown-content li.task-list-item input[type="checkbox"]+span {
   margin-left: 0.5em;
 }
 
-/* Style the text of completed tasks */
-.markdown-content li.task-list-item input[type="checkbox"]:checked + span {
-  text-decoration: line-through;
-  color: var(--text-secondary-light);
-  opacity: 0.8;
+.markdown-content p,
+.markdown-content li {
+  text-rendering: optimizeSpeed;
 }
 
-.dark .markdown-content li.task-list-item input[type="checkbox"]:checked + span {
+.dark .markdown-content li.task-list-item input[type="checkbox"]:checked+span {
   color: var(--text-secondary-dark);
 }
 
@@ -792,7 +830,6 @@ defineExpose({ scrollToEnd, isAtBottom });
   color: var(--code-text);
 }
 
-/* Table styling */
 .markdown-content table {
   border-collapse: collapse;
   width: 100%;
@@ -828,16 +865,14 @@ defineExpose({ scrollToEnd, isAtBottom });
   border-bottom: none;
 }
 
-/* LaTeX math styling */
-.markdown-content .katex-display {
-  margin: 1em 0;
-  overflow: auto hidden;
-  padding: 0.5em 0;
+.katex-inline {
+  vertical-align: middle;
 }
 
-.markdown-content .katex {
-  font-size: 1.1em;
-  white-space: nowrap;
+.katex-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
 }
 
 .markdown-content .katex-html {
@@ -866,7 +901,6 @@ defineExpose({ scrollToEnd, isAtBottom });
   }
 }
 
-/* Light mode highlight.js overrides */
 .markdown-content pre code.hljs {
   color: var(--code-text-light);
   background: var(--code-bg-light);
@@ -900,7 +934,6 @@ defineExpose({ scrollToEnd, isAtBottom });
   color: var(--code-property-light);
 }
 
-/* Dark mode highlight.js overrides */
 .dark .markdown-content pre code.hljs {
   color: var(--code-text);
   background: var(--code-bg);
@@ -934,16 +967,15 @@ defineExpose({ scrollToEnd, isAtBottom });
   color: var(--code-property-dark);
 }
 
-/* Make curly brackets and punctuation lighter in dark mode */
 .dark .markdown-content pre code.hljs .hljs-punctuation,
 .dark .markdown-content pre code.hljs .hljs-tag,
 .dark .markdown-content pre code.hljs .hljs-operator,
 .dark .markdown-content pre code.hljs .hljs-bracket {
-  color: #e6edf3; /* Light gray for better visibility */
+  color: #e6edf3;
 }
 
 .dark .markdown-content pre code.hljs .hljs-template-variable,
 .dark .markdown-content pre code.hljs .hljs-template-tag {
-  color: #f0f6fc; /* Even lighter for template content */
+  color: #f0f6fc;
 }
 </style>

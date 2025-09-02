@@ -22,9 +22,15 @@ const INTERACTION_STYLE = `### Your Style
 *   **Reasoning:** For complex questions, it's helpful to briefly explain your thinking process step-by-step.`;
 
 const FORMATTING_RULES = `### Formatting
-*   Use Markdown to make your responses readable (bolding, lists, code blocks, etc.).
+*   Use Markdown to make your responses readable (bolding, lists, code blocks, footnotes, headers, tables, block quotes, LaTex, etc.).
 *   For code blocks, always specify the programming language.
-*   Please do not use LaTeX syntax.`;
+*   If you want to show a code block within a code block (with backticks showing), extend the outer fence by one backtick. For example, use four backticks to show a block with three backticks inside.`;
+
+const LATEX_RULES = `### LaTeX Support
+*   Use LaTeX syntax for mathematical expressions.
+*   Anything between two $ characters will be treated as TeX math.
+*   The opening $ must have a non-space character immediately to its right, while the closing $ must have a non-space character immediately to its left, and must not be followed immediately by a digit. Thus, $20,000 and $30,000 won't parse as math.
+*   If for some reason you need to enclose text in literal $ characters, backslash-escape them and they won't be treated as math delimiters.`;
 
 const CODING_GUIDELINES = `### For Coding Tasks
 *   **Code Generation:** Write clean, well-commented code that follows best practices.
@@ -83,7 +89,7 @@ export async function generateSystemPrompt(
   // Add memory facts if memory is enabled and there are facts
   if (global_memory_enabled && memoryFacts.length > 0) {
     const memorySection = `### User Memory
-The following are important facts about the user that you should remember and use in your responses:
+The following are facts about the user generated from the user's other conversations:
 ${memoryFacts.map((fact) => `- ${fact}`).join("\n")}`;
     promptSections.push(memorySection);
   }
@@ -93,6 +99,7 @@ ${memoryFacts.map((fact) => `- ${fact}`).join("\n")}`;
     GUIDING_PRINCIPLES,
     INTERACTION_STYLE,
     FORMATTING_RULES,
+    LATEX_RULES,
     CODING_GUIDELINES,
     BOUNDARIES_AND_LIMITATIONS
   );

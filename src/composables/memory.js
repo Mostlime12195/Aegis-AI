@@ -14,8 +14,8 @@ export async function loadMemory() {
       const global_memory_array = JSON.parse(stored_memory);
       if (Array.isArray(global_memory_array)) {
         // Extract just the fact strings for backward compatibility
-        return global_memory_array.map(item => 
-          typeof item === 'string' ? item : item.fact
+        return global_memory_array.map((item) =>
+          typeof item === "string" ? item : item.fact
         );
       }
     }
@@ -37,16 +37,14 @@ export async function deleteMemory(fact) {
       let global_memory_array = JSON.parse(stored_memory);
       if (Array.isArray(global_memory_array)) {
         // Filter out the fact to delete (handle both old and new formats)
-        global_memory_array = global_memory_array.filter(
-          (existing_fact) => {
-            if (typeof existing_fact === 'string') {
-              return existing_fact !== fact;
-            } else {
-              return existing_fact.fact !== fact;
-            }
+        global_memory_array = global_memory_array.filter((existing_fact) => {
+          if (typeof existing_fact === "string") {
+            return existing_fact !== fact;
+          } else {
+            return existing_fact.fact !== fact;
           }
-        );
-        
+        });
+
         // Save the updated memory array or remove if empty
         if (global_memory_array.length > 0) {
           await localforage.setItem(
@@ -56,7 +54,7 @@ export async function deleteMemory(fact) {
         } else {
           await localforage.removeItem(MEMORY_STORAGE_KEY);
         }
-        
+
         console.log("Memory fact deleted:", fact);
       }
     }
@@ -102,7 +100,7 @@ export async function updateMemory(message, context) {
       // Ensure it's actually an array, default to empty if not
       if (!Array.isArray(global_memory_array)) {
         console.warn(
-          "Stored memory is not an array. Initializing with empty memory.",
+          "Stored memory is not an array. Initializing with empty memory."
         );
         global_memory_array = [];
       }
@@ -114,8 +112,8 @@ export async function updateMemory(message, context) {
   }
 
   // Convert memory array to strings for the AI (for backward compatibility)
-  const memory_strings = global_memory_array.map(item => 
-    typeof item === 'string' ? item : item.fact
+  const memory_strings = global_memory_array.map((item) =>
+    typeof item === "string" ? item : item.fact
   );
 
   // System prompt for memory operations (with detailed JSON structure explanation)
@@ -153,7 +151,7 @@ Detailed field specifications:
   * "modify" array: Contains objects with "old" and "new" fact strings for updating
 
 Criteria for operations:
-1. **Add**: New, enduring, actionable facts about the user (name, significant preferences, long-term goals)
+1. **Add**: New, enduring, actionable facts about the user (name, significant preferences, long-term goals. ONLY add facts that are relevant outside of the current conversation)
 2. **Remove**: Facts explicitly contradicted or requested to be removed by the user. Also remove outdated or contradictory facts.
 3. **Modify**: Existing facts that need updating with new information
 4. **Clear**: Only when user explicitly commands to clear ALL memory
@@ -191,8 +189,8 @@ Critical response requirements:
         ],
         stream: false, // Need the full JSON response
         response_format: {
-          type: "json_object"
-        }
+          type: "json_object",
+        },
       }),
     });
 
@@ -203,10 +201,10 @@ Critical response requirements:
         "API Error:",
         response.status,
         response.statusText,
-        errorBody,
+        errorBody
       );
       throw new Error(
-        `API request failed with status ${response.status}: ${errorBody}`,
+        `API request failed with status ${response.status}: ${errorBody}`
       );
     }
 
@@ -217,48 +215,79 @@ Critical response requirements:
     try {
       memory_operations = JSON.parse(data.choices[0]?.message?.content);
     } catch (parseError) {
-      console.error("Failed to parse AI response as JSON:", data.choices[0]?.message?.content);
+      console.error(
+        "Failed to parse AI response as JSON:",
+        data.choices[0]?.message?.content
+      );
       throw new Error("AI response is not valid JSON: " + parseError.message);
     }
-    
+
     console.log("AI response:", memory_operations);
 
     // Validate the structure of the AI response
-    if (!memory_operations || typeof memory_operations !== 'object') {
+    if (!memory_operations || typeof memory_operations !== "object") {
       throw new Error("AI response is not a valid object");
     }
-    
+
     if (!memory_operations.operation) {
       throw new Error("AI response missing required 'operation' field");
     }
-    
+
     const validOperations = ["add", "remove", "modify", "clear", "none"];
     if (!validOperations.includes(memory_operations.operation)) {
-      throw new Error(`AI response has invalid operation: ${memory_operations.operation}`);
+      throw new Error(
+        `AI response has invalid operation: ${memory_operations.operation}`
+      );
     }
-    
+
     // Validate facts structure based on operation
-    if (memory_operations.operation === "add" || memory_operations.operation === "remove" || memory_operations.operation === "modify") {
-      if (!memory_operations.facts || typeof memory_operations.facts !== 'object') {
-        throw new Error(`AI response missing required 'facts' object for operation ${memory_operations.operation}`);
+    if (
+      memory_operations.operation === "add" ||
+      memory_operations.operation === "remove" ||
+      memory_operations.operation === "modify"
+    ) {
+      if (
+        !memory_operations.facts ||
+        typeof memory_operations.facts !== "object"
+      ) {
+        throw new Error(
+          `AI response missing required 'facts' object for operation ${memory_operations.operation}`
+        );
       }
-      
-      if (memory_operations.operation === "add" && (!Array.isArray(memory_operations.facts.add) || !memory_operations.facts.add.every(f => typeof f === 'string'))) {
+
+      if (
+        memory_operations.operation === "add" &&
+        (!Array.isArray(memory_operations.facts.add) ||
+          !memory_operations.facts.add.every((f) => typeof f === "string"))
+      ) {
         throw new Error("AI response 'facts.add' must be an array of strings");
       }
-      
-      if (memory_operations.operation === "remove" && (!Array.isArray(memory_operations.facts.remove) || !memory_operations.facts.remove.every(f => typeof f === 'string'))) {
-        throw new Error("AI response 'facts.remove' must be an array of strings");
+
+      if (
+        memory_operations.operation === "remove" &&
+        (!Array.isArray(memory_operations.facts.remove) ||
+          !memory_operations.facts.remove.every((f) => typeof f === "string"))
+      ) {
+        throw new Error(
+          "AI response 'facts.remove' must be an array of strings"
+        );
       }
-      
+
       if (memory_operations.operation === "modify") {
         if (!Array.isArray(memory_operations.facts.modify)) {
           throw new Error("AI response 'facts.modify' must be an array");
         }
-        
+
         for (const mod of memory_operations.facts.modify) {
-          if (!mod || typeof mod !== 'object' || typeof mod.old !== 'string' || typeof mod.new !== 'string') {
-            throw new Error("AI response 'facts.modify' must be an array of objects with 'old' and 'new' string properties");
+          if (
+            !mod ||
+            typeof mod !== "object" ||
+            typeof mod.old !== "string" ||
+            typeof mod.new !== "string"
+          ) {
+            throw new Error(
+              "AI response 'facts.modify' must be an array of objects with 'old' and 'new' string properties"
+            );
           }
         }
       }
@@ -288,15 +317,17 @@ Critical response requirements:
             const trimmed_fact = fact.trim();
             if (trimmed_fact) {
               // Check if fact already exists (handle both old and new formats)
-              const exists = updated_memory_array.some(item => 
-                typeof item === 'string' ? item === trimmed_fact : item.fact === trimmed_fact
+              const exists = updated_memory_array.some((item) =>
+                typeof item === "string"
+                  ? item === trimmed_fact
+                  : item.fact === trimmed_fact
               );
-              
+
               if (!exists) {
                 // Add with timestamp
                 updated_memory_array.push({
                   fact: trimmed_fact,
-                  timestamp: new Date().toISOString()
+                  timestamp: new Date().toISOString(),
                 });
               }
             }
@@ -314,7 +345,7 @@ Critical response requirements:
             // Filter out the fact to delete (handle both old and new formats)
             updated_memory_array = updated_memory_array.filter(
               (existing_fact) => {
-                if (typeof existing_fact === 'string') {
+                if (typeof existing_fact === "string") {
                   return existing_fact !== trimmed_fact;
                 } else {
                   return existing_fact.fact !== trimmed_fact;
@@ -335,19 +366,21 @@ Critical response requirements:
             const new_fact = mod.new?.trim();
             if (old_fact && new_fact) {
               // Find and update the fact (handle both old and new formats)
-              const index = updated_memory_array.findIndex(item => 
-                typeof item === 'string' ? item === old_fact : item.fact === old_fact
+              const index = updated_memory_array.findIndex((item) =>
+                typeof item === "string"
+                  ? item === old_fact
+                  : item.fact === old_fact
               );
-              
+
               if (index !== -1) {
                 // Replace with new fact and update timestamp
                 updated_memory_array[index] = {
                   fact: new_fact,
-                  timestamp: new Date().toISOString()
+                  timestamp: new Date().toISOString(),
                 };
               } else {
                 console.warn(
-                  `Attempted to modify non-existent fact: "${old_fact}"`,
+                  `Attempted to modify non-existent fact: "${old_fact}"`
                 );
               }
             }
@@ -355,7 +388,7 @@ Critical response requirements:
         }
 
         console.log(
-          `Memory operations: ${memory_operations.operation}, Added: ${memory_operations.facts?.add?.length || 0}, Removed: ${memory_operations.facts?.remove?.length || 0}, Modified: ${memory_operations.facts?.modify?.length || 0}`,
+          `Memory operations: ${memory_operations.operation}, Added: ${memory_operations.facts?.add?.length || 0}, Removed: ${memory_operations.facts?.remove?.length || 0}, Modified: ${memory_operations.facts?.modify?.length || 0}`
         );
         break;
       }
@@ -366,7 +399,7 @@ Critical response requirements:
 
       default:
         console.warn(
-          `Unknown memory operation received from AI: "${memory_operations.operation}". No memory changes applied.`,
+          `Unknown memory operation received from AI: "${memory_operations.operation}". No memory changes applied.`
         );
         break;
     }
@@ -374,27 +407,25 @@ Critical response requirements:
     // Ensure uniqueness after operations (especially adds)
     // Create a map to track unique facts
     const factMap = new Map();
-    updated_memory_array.forEach(item => {
-      const fact = typeof item === 'string' ? item : item.fact;
+    updated_memory_array.forEach((item) => {
+      const fact = typeof item === "string" ? item : item.fact;
       // Keep the latest version of each fact
-      if (!factMap.has(fact) || (typeof item === 'object' && item.timestamp)) {
+      if (!factMap.has(fact) || (typeof item === "object" && item.timestamp)) {
         factMap.set(fact, item);
       }
     });
-    
+
     // Convert map back to array
-    updated_memory_array = Array.from(factMap.values()).filter(
-      (item) => {
-        const fact = typeof item === 'string' ? item : item.fact;
-        return fact;
-      }
-    );
+    updated_memory_array = Array.from(factMap.values()).filter((item) => {
+      const fact = typeof item === "string" ? item : item.fact;
+      return fact;
+    });
 
     // Save the updated memory array (as a JSON string)
     if (updated_memory_array.length > 0) {
       await localforage.setItem(
         MEMORY_STORAGE_KEY,
-        JSON.stringify(updated_memory_array),
+        JSON.stringify(updated_memory_array)
       );
       console.log("Global memory saved:", updated_memory_array);
     } else {
@@ -406,10 +437,10 @@ Critical response requirements:
     // Handle errors during API call, parsing, or processing
     console.error(
       "Error processing user message for global memory adjustments:",
-      err,
+      err
     );
     throw new Error(
-      "Error analyzing user message for global memory adjustments: " + err,
+      "Error analyzing user message for global memory adjustments: " + err
     );
   }
 }
