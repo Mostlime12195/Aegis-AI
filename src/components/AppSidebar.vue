@@ -56,6 +56,9 @@ function closeSidebar() {
     <div v-if="props.isOpen && windowWidth < 900" class="sidebar-overlay" @click="closeSidebar"></div>
     <div :class="['sidebar', { active: props.isOpen }]">
       <div class="sidebar-header">
+        <button class="close-button" aria-label="Close sidebar" @click="closeSidebar">
+          <Icon icon="material-symbols:side-navigation" width="28" height="28" />
+        </button>
         <span class="sidebar-title">Chats</span>
         <button class="settings-button" aria-label="Open settings" @click="$emit('openSettings')">
           <Icon icon="material-symbols:settings" width="28" height="28" />
@@ -117,7 +120,7 @@ function closeSidebar() {
   font-size: 1.1em;
   font-weight: 600;
   color: inherit;
-  padding-left: 48px;
+  padding-left: 0;
 }
 
 #new-chat-button {
@@ -235,11 +238,30 @@ function closeSidebar() {
   border-radius: 8px;
   height: 44px;
   width: 44px;
+  transition: background 0.18s;
 }
 
 .settings-button:hover {
   background: var(--btn-hover);
-  transform: scale(1.05);
+}
+
+.close-button {
+  border-radius: 8px;
+  height: 44px;
+  width: 44px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  transition: background 0.18s;
+}
+
+.close-button:hover {
+  background: var(--btn-hover);
 }
 
 @media (min-width: 900px) {

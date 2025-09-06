@@ -1,25 +1,10 @@
 <script setup>
 import { ref, computed, watch, nextTick } from "vue";
-import { PopoverRoot, PopoverTrigger, PopoverContent } from "reka-ui";
-import { availableModels } from "../composables/availableModels";
 import { Icon } from "@iconify/vue";
 
 // Define component properties and emitted events
 const props = defineProps({
   isLoading: Boolean,
-  selectedModelName: {
-    // Prop to display the current model name
-    type: String,
-    default: "Default Model",
-  },
-  selectedModelId: {
-    type: String,
-    default: "",
-  },
-  onModelSelect: {
-    type: Function,
-    default: () => { },
-  },
 });
 const emit = defineEmits([
   "send-message",
@@ -95,14 +80,6 @@ watch(inputMessage, async () => {
   }
 });
 
-// --- Model Selection ---
-function selectModelFromModal(modelId) {
-  const selectedModel = availableModels.find((model) => model.id === modelId);
-  if (selectedModel && typeof props.onModelSelect === 'function') {
-    props.onModelSelect(modelId, selectedModel.name);
-  }
-}
-
 // --- Exposed Methods ---
 
 /**
@@ -124,51 +101,6 @@ defineExpose({ setMessage });
         placeholder="Type your message..." class="chat-textarea" rows="1"></textarea>
 
       <div class="input-actions">
-        <!-- CHANGE: Added container with relative positioning for proper popover placement -->
-        <div class="model-selector-wrapper">
-          <PopoverRoot>
-            <PopoverTrigger class="action-btn model-selector-btn"
-              :aria-label="`Change model, currently ${props.selectedModelName}`">
-              <span class="model-name-display">{{
-                props.selectedModelName
-              }}</span>
-              <svg class="dropdown-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
-            </PopoverTrigger>
-
-            <PopoverContent class="model-selector-popover" side="top" align="start" :side-offset="8">
-              <div class="popover-content">
-                <ul class="model-list">
-                  <li v-for="model in availableModels" :key="model.id" class="model-list-item" :class="{
-                    selected:
-                      model.id ===
-                      props.selectedModelId,
-                  }" @click="
-                    () => {
-                      selectModelFromModal(model.id);
-                    }
-                  ">
-                    <div class="model-info">
-                      <strong>{{ model.name }}</strong>
-                    </div>
-                    <span v-if="
-                      model.id ===
-                      props.selectedModelId
-                    " class="selected-indicator">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </span>
-                  </li>
-                </ul>
-              </div>
-            </PopoverContent>
-          </PopoverRoot>
-        </div>
-
         <button type="submit" class="action-btn send-btn" :disabled="!trimmedMessage && !isLoading"
           @click="handleActionClick" :aria-label="isLoading ? 'Stop generation' : 'Send message'">
           <Icon v-if="!isLoading" icon="material-symbols:send-rounded" width="22" height="22" />
@@ -242,32 +174,6 @@ defineExpose({ setMessage });
   transform: translateY(-1px);
 }
 
-.model-selector-btn {
-  gap: 10px;
-  padding: 10px 16px;
-  font-size: 1rem;
-  font-weight: 500;
-  color: var(--btn-model-selector-text);
-  border-radius: 12px;
-  white-space: nowrap;
-  align-items: center;
-}
-
-.model-selector-btn:hover {
-  background-color: var(--btn-hover);
-}
-
-.model-name-display {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.dropdown-icon {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-}
-
 .send-btn {
   width: 44px;
   height: 44px;
@@ -276,8 +182,6 @@ defineExpose({ setMessage });
   color: var(--btn-send-text);
   flex-shrink: 0;
 }
-
-
 
 .send-btn:hover:not(:disabled) {
   background-color: var(--btn-send-hover-bg);
@@ -296,94 +200,10 @@ defineExpose({ setMessage });
 
 .input-actions {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   padding: 8px 4px 0;
   gap: 8px;
-}
-
-/* --- MODEL SELECTOR POPOVER --- */
-.model-selector-wrapper {
-  position: relative;
-}
-
-.model-selector-btn {
-  position: relative;
-  z-index: 1999;
-}
-
-.model-list {
-  list-style: none;
-  padding: 8px;
-  margin: 0;
-  overflow-y: auto;
-  background: var(--popover-bg);
-  border-radius: 16px;
-}
-
-.model-list-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 8px 12px;
-  text-align: left;
-  background: none;
-  color: var(--popover-list-item-text);
-  cursor: pointer;
-  transition:
-    background-color 0.15s ease,
-    color 0.15s ease,
-    border-color 0.15s ease;
-  font-size: 0.95em;
-  border-radius: 8px;
-  margin-bottom: 4px;
-}
-
-.model-list-item:hover {
-  background-color: var(--btn-hover);
-}
-
-.model-list-item.selected {
-  background-color: var(--btn-hover);
-  color: var(--popover-list-item-selected-text);
-  font-weight: 500;
-}
-
-.model-info strong {
-  display: block;
-  font-size: 1em;
-}
-
-.selected-indicator {
-  color: var(--primary-background);
-  flex-shrink: 0;
-  transform: translateY(3px);
-  margin-left: 12px;
-}
-
-.selected-indicator svg {
-  width: 16px;
-  height: 16px;
-}
-
-/* Animation for popover */
-@keyframes popIn {
-  0% {
-    opacity: 0;
-    transform: scale(0.5) translateY(50px);
-  }
-
-  100% {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-.model-selector-popover {
-  animation: popIn 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-  min-width: 300px;
-  max-width: 200px;
 }
 
 /* Ensure MessageForm stays at the bottom */

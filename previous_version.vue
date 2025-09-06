@@ -17,8 +17,7 @@ import Settings from './composables/settings';
 import MessageForm from './components/MessageForm.vue';
 import ChatPanel from './components/ChatPanel.vue';
 import AppSidebar from './components/AppSidebar.vue'
-import SettingsPanel from './components/SettingsPanel.vue';
-import TopBar from './components/TopBar.vue';
+import SettingsPanel from './components/SettingsPanel.vue'
 import { Icon } from "@iconify/vue";
 
 
@@ -353,6 +352,9 @@ function openSettingsPanel(tabKey = 'general') {
 
 <template>
   <div class="app-container">
+    <button class="global-menu-toggle" :class="{ dark: isDark }" @click="toggleSidebar" aria-label="Toggle menu">
+      <Icon icon="material-symbols:side-navigation" width="24" height="24" />
+    </button>
     <Suspense>
       <AppSidebar :curr-convo="currConvo" :messages="messages" :is-open="sidebarOpen"
         @close-sidebar="sidebarOpen = false" @toggle-sidebar="toggleSidebar" @change-conversation="changeConversation"
@@ -368,15 +370,9 @@ function openSettingsPanel(tabKey = 'general') {
       - MessageForm: Fixed position at bottom, centered with dynamic width
     -->
     <div class="main-container" :class="{ 'sidebar-open': sidebarOpen }">
-      <TopBar 
-        :is-scrolled-top="isScrolledTop" 
-        :selected-model-name="selectedModelName"
-        :selected-model-id="selectedModelId"
-        :toggle-sidebar="toggleSidebar"
-        :sidebar-open="sidebarOpen"
-        @model-selected="handleModelSelect"
-      />
-
+      <div class="top-bar" :class="{ 'with-border': !isScrolledTop }">
+        <!-- Placeholder bar content -->
+      </div>
       <ChatPanel ref="chatPanel" :curr-convo="currConvo" :curr-messages="messages" :isLoading="isLoading"
         :conversationTitle="conversationTitle" :show-welcome="!currConvo && !isTyping" :is-dark="isDark"
         @set-message="text => $refs.messageForm.setMessage(text)" @scroll="handleChatScroll" />
