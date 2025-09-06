@@ -14,7 +14,7 @@ const props = defineProps({
   },
   selectedModelId: {
     type: String,
-    required: true,
+    default: "",
   },
   onModelSelect: {
     type: Function,
@@ -371,13 +371,19 @@ defineExpose({ setMessage });
 @keyframes popIn {
   0% {
     opacity: 0;
-    transform: scale(0.95) translateY(10px);
+    transform: scale(0.5) translateY(50px);
   }
 
   100% {
     opacity: 1;
     transform: scale(1) translateY(0);
   }
+}
+
+.model-selector-popover {
+  animation: popIn 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  min-width: 300px;
+  max-width: 200px;
 }
 
 /* Ensure MessageForm stays at the bottom */

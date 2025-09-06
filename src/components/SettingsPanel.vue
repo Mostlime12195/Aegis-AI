@@ -323,7 +323,6 @@ async function handleClearAllMemory() {
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--border);
-  scrollbar-color: #54514d transparent;
 }
 
 

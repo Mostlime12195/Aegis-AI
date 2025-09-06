@@ -70,7 +70,7 @@ const selectedModelName = computed(() => {
  * This will be used to highlight the selected model in the MessageForm.
  */
 const selectedModelId = computed(() => {
-  return settingsManager.settings.selected_model_id;
+  return settingsManager.settings.selected_model_id || "";
 });
 
 function generateId() {
@@ -507,7 +507,6 @@ button:hover {
 
 .dark #app {
   background: var(--bg);
-  scrollbar-color: #54514d transparent;
   color: var(--text-primary);
 }
 

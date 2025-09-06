@@ -29,7 +29,7 @@ export const availableModels = [
     },
   },
   {
-    id: "meta-llama/llama-4-maverick-17b-128e-instruct",
+    id: "meta-llama/llama-4-maverick",
     name: "LLaMA 4 Maverick",
     reasoning: false,
     extra_functions: [],

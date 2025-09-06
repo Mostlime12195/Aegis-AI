@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, watch, nextTick, computed, reactive } from "vue";
+import { onMounted, onUnmounted, ref, watch, nextTick, computed, reactive } from "vue";
 import { Icon } from "@iconify/vue";
 import hljs from "highlight.js";
 import MarkdownIt from "markdown-it";
@@ -7,6 +7,7 @@ import markdownItFootnote from "markdown-it-footnote";
 import markdownItTaskLists from "markdown-it-task-lists";
 import markdownItKatex from "markdown-it-katex";
 import StreamingMessage from './StreamingMessage.vue';
+import LoadingSpinner from './LoadingSpinner.vue';
 
 const props = defineProps({
   currConvo: {
@@ -128,6 +129,7 @@ md.renderer.rules.fence = function (tokens, idx, options, env, self) {
 
 const liveReasoningTimers = reactive({});
 const timerIntervals = {};
+const messageLoadingStates = reactive({});
 
 function formatDuration(ms) {
   if (ms < 1000) return `${ms}ms`;
@@ -139,11 +141,7 @@ const chatWrapper = ref(null);
 
 const messages = computed(() => {
   if (!props.currMessages) return [];
-
-  return props.currMessages.map((msg) => {
-    const isNew = !msg.timestamp || Date.now() - msg.timestamp < 5000;
-    return { ...msg, isNew };
-  });
+  return props.currMessages;
 });
 
 const scrollToEnd = (behavior = "smooth") => {
@@ -178,6 +176,22 @@ watch(
       if (timerIntervals[msg.id]) {
         clearInterval(timerIntervals[msg.id]);
         delete timerIntervals[msg.id];
+      }
+
+      // Handle loading states for assistant messages
+      if (msg.role === 'assistant') {
+        // Show loading spinner for new messages that are not complete and have no content
+        if (!msg.complete && (!msg.content || msg.content.length === 0)) {
+          if (messageLoadingStates[msg.id] !== true) {
+            messageLoadingStates[msg.id] = true;
+          }
+        } 
+        // Hide loading spinner as soon as the message has content (streaming started) or is complete
+        else if ((msg.content && msg.content.length > 0) || msg.complete) {
+          if (messageLoadingStates[msg.id] !== false) {
+            messageLoadingStates[msg.id] = false;
+          }
+        }
       }
 
       if (msg.role === "assistant" && msg.reasoning) {
@@ -217,6 +231,13 @@ watch(
         delete liveReasoningTimers[timerId];
       }
     });
+    
+    // Clean up loading states for removed messages
+    Object.keys(messageLoadingStates).forEach((msgId) => {
+      if (!currentMessageIds.includes(msgId)) {
+        delete messageLoadingStates[msgId];
+      }
+    });
   },
   { deep: true, immediate: true },
 );
@@ -240,6 +261,13 @@ onMounted(() => {
   // Make functions available globally
   window.copyCode = copyCode;
   window.downloadCode = downloadCode;
+});
+
+onUnmounted(() => {
+  // Clean up all timers
+  Object.values(timerIntervals).forEach(timer => {
+    clearInterval(timer);
+  });
 });
 
 function copyCode(button) {
@@ -296,11 +324,18 @@ const renderReasoningContent = (content) => {
   return html;
 };
 
-// Function to handle when a streaming message is complete
-function onStreamingMessageComplete(messageId) {
+// Function to handle when streaming message starts
+function onStreamingMessageStart(messageId) {
+  // We don't need to change the loading state here since it's already handled by the watcher
 }
 
-// Remove the old watcher for message changes since we're handling it differently now
+// Function to handle when a streaming message is complete
+function onStreamingMessageComplete(messageId) {
+  // Set loading state to false when streaming is complete
+  if (messageLoadingStates[messageId] !== false) {
+    messageLoadingStates[messageId] = false;
+  }
+}
 
 defineExpose({ scrollToEnd, isAtBottom });
 </script>
@@ -313,7 +348,7 @@ defineExpose({ scrollToEnd, isAtBottom });
         <template v-for="message in messages" :key="message.id">
           <div class="message" :class="message.role" :data-message-id="message.id">
             <div class="message-content">
-              <details v-if="message.role === 'assistant' && message.reasoning" class="reasoning-details" open>
+              <details v-if="message.role === 'assistant' && message.reasoning" class="reasoning-details">
                 <summary class="reasoning-summary">
                   <span class="reasoning-toggle-icon">
                     <Icon icon="material-symbols:keyboard-arrow-down-rounded" width="24" height="24" />
@@ -321,7 +356,7 @@ defineExpose({ scrollToEnd, isAtBottom });
                   <span class="reasoning-text">
                     <span v-if="liveReasoningTimers[message.id]">{{
                       liveReasoningTimers[message.id]
-                    }}</span>
+                      }}</span>
                     <span v-else-if="message.reasoningDuration > 0">Thought for
                       {{ formatDuration(message.reasoningDuration) }}</span>
                     <span v-else-if="
@@ -342,8 +377,11 @@ defineExpose({ scrollToEnd, isAtBottom });
                 <div v-else-if="message.complete" class="markdown-content"
                   v-html="renderMessageContent(message.content)"></div>
                 <div v-else>
+                  <div v-if="messageLoadingStates[message.id]" class="loading-animation">
+                    <LoadingSpinner />
+                  </div>
                   <StreamingMessage :content="message.content" :is-complete="message.complete"
-                    @complete="onStreamingMessageComplete(message.id)" />
+                    @complete="onStreamingMessageComplete(message.id)" @start="onStreamingMessageStart(message.id)" />
                 </div>
               </div>
             </div>
@@ -873,26 +911,12 @@ defineExpose({ scrollToEnd, isAtBottom });
   display: inline-block;
 }
 
-.cursor {
-  display: inline-block;
-  animation: blink 1s step-end infinite;
-  color: var(--text-primary-light);
-}
-
-.dark .cursor {
-  color: var(--text-primary-dark);
-}
-
-@keyframes blink {
-
-  from,
-  to {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0;
-  }
+.loading-animation {
+  display: flex;
+  padding: 12px 16px;
+  width: 100%;
+  box-sizing: border-box;
+  align-items: center;
 }
 
 .markdown-content pre code.hljs {

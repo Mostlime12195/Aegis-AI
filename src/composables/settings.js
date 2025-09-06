@@ -18,6 +18,10 @@ class Settings {
       
       // --- Memory Settings ---
       global_memory_enabled: false, // Whether global memory is enabled
+      
+      // --- Model Settings ---
+      selected_model_id: "qwen/qwen3-32b", // Default model ID
+      selected_model_name: "Qwen 3 32B", // Default model name
     });
 
     // Add type information for better type safety
@@ -27,6 +31,8 @@ class Settings {
     this.defaultSettings = {
       version: 2,
       global_memory_enabled: false, // Add default value for global memory
+      selected_model_id: "qwen/qwen3-32b", // Default model ID
+      selected_model_name: "Qwen 3 32B", // Default model name
     };
 
     // Load settings asynchronously

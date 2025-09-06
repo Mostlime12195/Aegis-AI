@@ -136,6 +136,8 @@
   --font:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
     sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+
+  scrollbar-color: #b4ab9e transparent;
 }
 
 /* ----------------- DARK THEME (deep, warm, grayer) ----------------- */
@@ -176,7 +178,7 @@
   --info: #60f0f0;
 
   /* Shadows & focus */
-  --shadow-elev: rgba(0, 0, 0, 0.6);
+  --shadow-elev: rgba(2, 6, 23, 0.2);
   --focus-ring: rgba(224, 106, 58, 0.14); /* warmer focus */
 
   /* Component-specific variables for dark mode */
@@ -196,7 +198,7 @@
   --bg-sidebar: var(--surface);
   --bg-input: var(--elevated-surface);
   --text-placeholder: var(--text-muted);
-  --shadow-default: 0 4px 12px var(--shadow-elev);
+  --shadow-default: 0 4px 16px var(--shadow-elev);
   --btn-model-selector-bg: var(--muted-border);
   --btn-model-selector-text: var(--text-primary);
   --btn-model-selector-hover-bg: var(--border);
@@ -219,6 +221,8 @@
   --code-action-text: #aab7c2;
   --code-action-hover-bg: rgba(255, 255, 255, 0.03);
   --code-action-hover-text: #e6eef8;
+
+  scrollbar-color: #54514d transparent;
 }
 
 *,

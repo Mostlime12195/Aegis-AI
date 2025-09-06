@@ -22,7 +22,7 @@ const props = defineProps({
   isComplete: { type: Boolean, default: false }
 });
 
-const emit = defineEmits(['complete']);
+const emit = defineEmits(['complete', 'start']);
 
 // DOM refs (match your template)
 const staticContainer = ref(null);
@@ -98,6 +98,7 @@ let appendedBlockCount = 0;   // how many complete blocks we've appended to stat
 let tailMarkdown = '';        // the current tail (not-yet-moved text)
 let prevContent = '';         // last seen prop content string
 let lastRenderKey = '';       // avoid redundant streaming innerHTML writes
+let hasEmittedStart = false;  // track if we've emitted the start event
 
 // Make sure global functions are available
 if (typeof window.copyCode !== 'function') {
@@ -323,6 +324,12 @@ function processContentNow(newContent, isComplete) {
 
   // If there was no previous content, treat as fresh
   if (!prevContent) {
+    // Emit start event when streaming begins
+    if (!hasEmittedStart) {
+      emit('start');
+      hasEmittedStart = true;
+    }
+    
     // Init: split into blocks and render
     handleNonPrefixReplace(newContent, false);
     prevContent = newContent;
@@ -355,6 +362,11 @@ function processContentNow(newContent, isComplete) {
 watch(
   () => [props.content, props.isComplete],
   ([newContent, isComplete]) => {
+    // Reset the start flag when content is cleared or reset
+    if (!newContent || newContent.length < prevContent.length) {
+      hasEmittedStart = false;
+    }
+    
     processContentNow(newContent || '', isComplete);
   },
   { immediate: true }
