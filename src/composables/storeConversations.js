@@ -38,7 +38,7 @@ export async function createConversation(plainMessages, lastUpdated) {
             content: msg.content,
           })),
         ],
-        model: "moonshotai/kimi-k2-instruct",
+        model: "moonshotai/kimi-k2-instruct-0905",
         stream: false,
       }),
     });

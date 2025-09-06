@@ -42,6 +42,13 @@ export const availableModels = [
     extra_functions: [],
     extra_parameters: {},
   },
+  {
+    id: "moonshotai/kimi-k2-instruct-0905",
+    name: "Kimi K2 0905",
+    reasoning: false,
+    extra_functions: [],
+    extra_parameters: {},
+  },
 ];
 
 export default availableModels;

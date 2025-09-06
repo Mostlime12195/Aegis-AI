@@ -176,7 +176,7 @@ Critical response requirements:
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "moonshotai/kimi-k2-instruct",
+        model: "moonshotai/kimi-k2-instruct-0905",
         messages: [
           {
             role: "system",
