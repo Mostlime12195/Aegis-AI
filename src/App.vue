@@ -151,7 +151,24 @@ async function sendMessage(message) {
 
   // Get current model details from the settingsManager (reactive instance)
   const { availableModels } = await import('./composables/availableModels');
-  const selectedModelDetails = availableModels.find(model => model.id === settingsManager.settings.selected_model_id);
+  
+  // Helper function to find a model by ID, including nested models in categories
+  function findModelById(models, id) {
+    for (const model of models) {
+      if (model.id === id) {
+        return model;
+      }
+      if (model.models && Array.isArray(model.models)) {
+        const found = findModelById(model.models, id);
+        if (found) {
+          return found;
+        }
+      }
+    }
+    return null;
+  }
+  
+  const selectedModelDetails = findModelById(availableModels, settingsManager.settings.selected_model_id);
 
   if (!selectedModelDetails) {
     console.error("No model selected or model details not found. Aborting message send.");

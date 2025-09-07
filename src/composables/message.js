@@ -67,9 +67,23 @@ export async function* handleIncomingMessage(
     }
 
     // Add reasoning parameters only if the model supports reasoning
-    const selectedModelInfo = availableModels.find(
-      (model) => model.id === selectedModel
-    );
+    // Helper function to find a model by ID, including nested models in categories
+    function findModelById(models, id) {
+      for (const model of models) {
+        if (model.id === id) {
+          return model;
+        }
+        if (model.models && Array.isArray(model.models)) {
+          const found = findModelById(model.models, id);
+          if (found) {
+            return found;
+          }
+        }
+      }
+      return null;
+    }
+    
+    const selectedModelInfo = findModelById(availableModels, selectedModel);
     if (selectedModelInfo && selectedModelInfo.reasoning) {
       requestBody.reasoning_format = "parsed";
 
