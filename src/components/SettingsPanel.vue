@@ -280,8 +280,22 @@ async function handleClearAllMemory() {
               </div>
               <div class="info-section">
                 <p>
-                  A modern Vue.js-powered interface for AI interactions with
-                  support for Hack Club API.
+                  Aegis AI is a modern, Vue.js-powered interface designed for seamless AI interactions. 
+                  Built with developers in mind, it offers a customizable experience that adapts to your needs.
+                </p>
+                <p>
+                  Features include:
+                </p>
+                <ul>
+                  <li>Real-time AI conversation interface</li>
+                  <li>Customizable user preferences</li>
+                  <li>Persistent memory management</li>
+                  <li>Dark/light mode support</li>
+                  <li>Hack Club API integration</li>
+                </ul>
+                <p>
+                  For more information, visit our 
+                  <a href="https://github.com/Mostlime12195/Aegis-AI" target="_blank" rel="noopener noreferrer">GitHub repository</a>.
                 </p>
               </div>
             </div>
