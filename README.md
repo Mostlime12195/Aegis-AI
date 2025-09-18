@@ -11,16 +11,16 @@ Aegis AI does **not** sell your user information, and all chat & user data is st
 - Detailed code-blocks, including syntax highlighting, downloading, and a copy button.
 - Customizable with name, occupation, and custom instructions.
 - Reasoning is visible.
+- For GPT-OSS models, advanced web search is supported with inline citations.
 
 ## Todo
 
-Please suggest more ideas in the Issues tab.
-
-- Improved Reasoning/Chain-of-Thought
 - Canvas/Code Panel
-- Tree-of-Thought (Split a reasoning thought into multiple seperate Chain-of-Thoughts, each running asynchronously)
-- Tools (mainly search & code execution for the GPT-OSS models, which are handled automatically by Groq)
-- Memory (used to be a feature, no longer available)
+- Tree-of-Thought (Multiple instances of the same or different models working together to solve a problem at the same time)
+- Incognito mode
+- Parameter configuration (temperature, top_p, etc.)
+
+Please suggest more ideas in the Issues tab.
 
 ## VSCode Setup
 
