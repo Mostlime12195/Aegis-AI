@@ -2,82 +2,12 @@
 import { onMounted, onUnmounted, ref, watch, nextTick, computed, reactive } from "vue";
 import { Icon } from "@iconify/vue";
 import hljs from "highlight.js";
-import MarkdownIt from "markdown-it";
-import markdownItFootnote from "markdown-it-footnote";
-import markdownItTaskLists from "markdown-it-task-lists";
-import markdownItKatex from "markdown-it-katex";
+import { chatPanelMd as md } from '../utils/markdown';
 import StreamingMessage from './StreamingMessage.vue';
 import LoadingSpinner from './LoadingSpinner.vue';
 
-const props = defineProps({
-  currConvo: {
-    type: [String, Number, Object],
-    default: null
-  },
-  currMessages: {
-    type: Array,
-    default: () => []
-  },
-  isLoading: {
-    type: Boolean,
-    default: false
-  },
-  conversationTitle: {
-    type: String,
-    default: ''
-  },
-  showWelcome: {
-    type: Boolean,
-    default: false
-  },
-  isDark: {
-    type: Boolean,
-    default: false
-  }
-});
-const emit = defineEmits(["send-message", "set-message", "scroll"]);
-
-const langExtMap = {
-  python: "py",
-  javascript: "js",
-  typescript: "ts",
-  html: "html",
-  css: "css",
-  vue: "vue",
-  json: "json",
-  markdown: "md",
-  shell: "sh",
-  bash: "sh",
-  java: "java",
-  c: "c",
-  cpp: "cpp",
-  csharp: "cs",
-  go: "go",
-  rust: "rs",
-  ruby: "rb",
-  php: "php",
-  sql: "sql",
-  xml: "xml",
-  yaml: "yml",
-}
-
 // Initialize markdown-it with plugins (without markdown-it-katex)
-const md = new MarkdownIt({
-  html: true,
-  linkify: true,
-  typographer: true,
-  highlight: function (str, lang) {
-    if (lang && hljs.getLanguage(lang)) {
-      try {
-        return hljs.highlight(str, { language: lang }).value;
-      } catch (__) { }
-    }
-    return '';
-  }
-})
-  .use(markdownItFootnote)
-  .use(markdownItTaskLists, { enabled: false, label: true, bulletMarker: "-" })
-  .use(markdownItKatex, { "throwOnError": false, "errorColor": " #cc0000" });
+// Using shared instance from utils/markdown.js
 
 
 // Add custom fence rule for code blocks
@@ -125,6 +55,59 @@ md.renderer.rules.fence = function (tokens, idx, options, env, self) {
     + '</div>'
     + '<pre><code class="hljs ' + md.utils.escapeHtml(lang) + '">' + highlightedCode + '</code></pre>'
     + '</div>';
+}
+
+const props = defineProps({
+  currConvo: {
+    type: [String, Number, Object],
+    default: null
+  },
+  currMessages: {
+    type: Array,
+    default: () => []
+  },
+  isLoading: {
+    type: Boolean,
+    default: false
+  },
+  conversationTitle: {
+    type: String,
+    default: ''
+  },
+  showWelcome: {
+    type: Boolean,
+    default: false
+  },
+  isDark: {
+    type: Boolean,
+    default: false
+  }
+});
+
+const emit = defineEmits(["send-message", "set-message", "scroll"]);
+
+const langExtMap = {
+  python: "py",
+  javascript: "js",
+  typescript: "ts",
+  html: "html",
+  css: "css",
+  vue: "vue",
+  json: "json",
+  markdown: "md",
+  shell: "sh",
+  bash: "sh",
+  java: "java",
+  c: "c",
+  cpp: "cpp",
+  csharp: "cs",
+  go: "go",
+  rust: "rs",
+  ruby: "rb",
+  php: "php",
+  sql: "sql",
+  xml: "xml",
+  yaml: "yml",
 }
 
 const liveReasoningTimers = reactive({});
@@ -185,7 +168,7 @@ watch(
           if (messageLoadingStates[msg.id] !== true) {
             messageLoadingStates[msg.id] = true;
           }
-        } 
+        }
         // Hide loading spinner as soon as the message has content (streaming started) or is complete
         else if ((msg.content && msg.content.length > 0) || msg.complete) {
           if (messageLoadingStates[msg.id] !== false) {
@@ -231,7 +214,7 @@ watch(
         delete liveReasoningTimers[timerId];
       }
     });
-    
+
     // Clean up loading states for removed messages
     Object.keys(messageLoadingStates).forEach((msgId) => {
       if (!currentMessageIds.includes(msgId)) {
@@ -304,15 +287,23 @@ function downloadCode(button, lang) {
   URL.revokeObjectURL(url);
 };
 
-const renderMessageContent = (content) => {
-  // First render Markdown
-  let html = md.render(content || '');
+// Render message content with markdown
+function renderMessageContent(content, executedTools) {
+  // Render Markdown - the citation plugin will handle citations automatically
+  const html = md.render(content || '');
 
-  // For streaming content, we need to handle processing in a controlled way
-  // This will be handled by the watch function that monitors message updates
+  // Create a temporary div to hold the HTML
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = html;
 
-  return html;
-};
+  // Process citations in place within the temporary div
+  md.processCitationsInPlace(tempDiv, executedTools);
+
+  // Return the processed HTML
+  return tempDiv.innerHTML;
+}
+
+
 
 const renderReasoningContent = (content) => {
   // First render Markdown
@@ -356,7 +347,7 @@ defineExpose({ scrollToEnd, isAtBottom });
                   <span class="reasoning-text">
                     <span v-if="liveReasoningTimers[message.id]">{{
                       liveReasoningTimers[message.id]
-                      }}</span>
+                    }}</span>
                     <span v-else-if="message.reasoningDuration > 0">Thought for
                       {{ formatDuration(message.reasoningDuration) }}</span>
                     <span v-else-if="
@@ -375,13 +366,14 @@ defineExpose({ scrollToEnd, isAtBottom });
               <div class="bubble">
                 <div v-if="message.role == 'user'">{{ message.content }}</div>
                 <div v-else-if="message.complete" class="markdown-content"
-                  v-html="renderMessageContent(message.content)"></div>
+                  v-html="renderMessageContent(message.content, message.executed_tools || [])"></div>
                 <div v-else>
                   <div v-if="messageLoadingStates[message.id]" class="loading-animation">
                     <LoadingSpinner />
                   </div>
                   <StreamingMessage :content="message.content" :is-complete="message.complete"
-                    @complete="onStreamingMessageComplete(message.id)" @start="onStreamingMessageStart(message.id)" />
+                    :executed-tools="message.executed_tools || []" @complete="onStreamingMessageComplete(message.id)"
+                    @start="onStreamingMessageStart(message.id)" />
                 </div>
               </div>
             </div>
@@ -746,25 +738,24 @@ defineExpose({ scrollToEnd, isAtBottom });
 .markdown-content h1,
 .markdown-content h2,
 .markdown-content h3 {
-  border-bottom: 1px solid var(--reasoning-border-light);
-  padding-bottom: 0.3em;
-  margin-top: 1.5em;
-  margin-bottom: 1em;
+  margin-top: 1.2em;
+  margin-bottom: 0;
+  font-weight: 700;
 }
 
 .dark .markdown-content h1,
 .dark .markdown-content h2,
 .dark .markdown-content h3 {
-  border-bottom-color: var(--reasoning-border-dark);
+  font-weight: 700;
 }
 
 .markdown-content p {
-  margin: 1em 0;
+  margin: 0.8em 0;
 }
 
 .markdown-content strong,
 .markdown-content b {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary-light);
 }
 

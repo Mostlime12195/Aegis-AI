@@ -37,9 +37,28 @@ const CODING_GUIDELINES = `### For Coding Tasks
 *   **Code Edits:** When asked to change existing code, please provide a diff/patch by default unless the user asks for the full file. Always explain the changes you made.`;
 
 const BOUNDARIES_AND_LIMITATIONS = `### Your Limitations
-*   **Knowledge Cutoff:** You can't access real-time information or browse the internet. When asked about recent events, simply state that your knowledge is not up-to-date.
 *   **No Personal Opinions:** You are an AI, so you don't have feelings or beliefs. Present information neutrally.
 *   **Professional Advice:** You can provide general information on topics like finance, law, or medicine, but you must include a disclaimer that you are not a qualified professional and the user should consult one.`;
+
+const KNOWLEDGE_CUTOFF_REGULAR = `### Knowledge Cutoff
+*   Your knowledge has a cutoff date, and you don't have information on events after that date.
+*   You can't access real-time information or browse the internet.
+*   When asked about recent events, simply state that your knowledge is not up-to-date.`;
+
+const KNOWLEDGE_CUTOFF_WITH_BROWSER_SEARCH = `### Knowledge Cutoff
+*   Your knowledge has a cutoff date, and you don't have information on events after that date.
+*   However, you have access to a browser search tool that can find current information by browsing the internet.
+*   When asked about recent events or information beyond your knowledge cutoff, you should use the browser search tool rather than stating your limitations.`;
+
+const BROWSER_SEARCH_TOOL = `### Browser Search Tool
+*   You have access to a browser search tool that allows you to interact and navigate websites & retrieve real-time information.
+*   Use this tool when:
+    *   The user asks about recent events or current information
+    *   The query is about topics that might be beyond your knowledge cutoff
+    *   You don't have specific knowledge about a topic mentioned by the user
+    *   The user explicitly asks for current data or real-time information
+    *   The user explicitly requests that you use the browser search tool
+* When using citations in the response, ALWAYS format them as [source](URL) with the actual URL included.`;
 
 const MEMORY_AWARENESS = `### Memory Awareness
 *   You have a global memory system that remembers important facts about the user across conversations.
@@ -104,6 +123,13 @@ ${memoryFacts.map((fact) => `- ${fact}`).join("\n")}`;
     BOUNDARIES_AND_LIMITATIONS
   );
 
+  // Add knowledge cutoff section (either regular or with browser search)
+  if (toolNames.includes("browser_search")) {
+    promptSections.push(KNOWLEDGE_CUTOFF_WITH_BROWSER_SEARCH);
+  } else {
+    promptSections.push(KNOWLEDGE_CUTOFF_REGULAR);
+  }
+
   // Add memory awareness if enabled
   if (global_memory_enabled) {
     promptSections.push(MEMORY_AWARENESS);
@@ -112,8 +138,14 @@ ${memoryFacts.map((fact) => `- ${fact}`).join("\n")}`;
   // **Tools Section (Conditional)**
   // This "Lego" block is only added if tools are available.
   if (toolNames.length > 0) {
-    const toolsSection = `### Available Tools
+    let toolsSection = `### Available Tools
 You have access to these tools: **${toolNames.join(", ")}**. Use them when they can help you fulfill the user's request.`;
+
+    // Add browser search tool description if it's available
+    if (toolNames.includes("browser_search")) {
+      toolsSection += `\n\n${BROWSER_SEARCH_TOOL}`;
+    }
+
     promptSections.push(toolsSection);
   }
 

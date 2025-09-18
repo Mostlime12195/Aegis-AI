@@ -8,7 +8,23 @@ import { availableModels } from "./availableModels";
 import { generateSystemPrompt } from "./systemPrompt";
 import { loadMemory } from "./memory";
 
-/**\n * Main entry point for processing all incoming user messages for the API interface.\n * It determines the correct API configuration and streams the LLM response.\n *\n * @param {string} query - The user's message\n * @param {Array} plainMessages - Conversation history (e.g., [{ role: \"user\", content: \"...\"}, { role: \"assistant\", content: \"...\"}])\n * @param {AbortController} controller - AbortController instance for cancelling API requests\n * @param {string} selectedModel - The model chosen by the user\n * @param {object} modelParameters - Object containing all configurable model parameters (temperature, top_p, max_tokens, seed, reasoning)\n * @param {object} settings - User settings object containing user_name, user_occupation, and custom_instructions\n * @param {string[]} toolNames - Array of available tool names\n * @yields {Object} A chunk object with content and/or reasoning\n *   @property {string|null} content - The main content of the response chunk\n *   @property {string|null} reasoning - Any reasoning information included in the response chunk\n */
+// Helper function to find a model by ID, including nested models in categories
+function findModelById(models, id) {
+  for (const model of models) {
+    if (model.id === id) {
+      return model;
+    }
+    if (model.models && Array.isArray(model.models)) {
+      const found = findModelById(model.models, id);
+      if (found) {
+        return found;
+      }
+    }
+  }
+  return null;
+}
+
+/**\n * Main entry point for processing all incoming user messages for the API interface.\n * It determines the correct API configuration and streams the LLM response.\n *\n * @param {string} query - The user's message\n * @param {Array} plainMessages - Conversation history (e.g., [{ role: \"user\", content: \"...\"}, { role: \"assistant\", content: \"...\"}])\n * @param {AbortController} controller - AbortController instance for cancelling API requests\n * @param {string} selectedModel - The model chosen by the user\n * @param {object} modelParameters - Object containing all configurable model parameters (temperature, top_p, max_tokens, seed, reasoning)\n * @param {object} settings - User settings object containing user_name, user_occupation, and custom_instructions\n * @param {string[]} toolNames - Array of available tool names\n * @param {boolean} isSearchEnabled - Whether the browser search tool is enabled\n * @yields {Object} A chunk object with content and/or reasoning\n *   @property {string|null} content - The main content of the response chunk\n *   @property {string|null} reasoning - Any reasoning information included in the response chunk\n */
 export async function* handleIncomingMessage(
   query,
   plainMessages,
@@ -16,7 +32,8 @@ export async function* handleIncomingMessage(
   selectedModel = "qwen/qwen3-32b",
   modelParameters = {},
   settings = {},
-  toolNames = []
+  toolNames = [],
+  isSearchEnabled = false
 ) {
   try {
     // Validate required parameters
@@ -30,67 +47,56 @@ export async function* handleIncomingMessage(
       memoryFacts = await loadMemory();
     }
 
-    // Generate system prompt based on settings and available tools
-    const systemPrompt = await generateSystemPrompt(toolNames, settings, memoryFacts);
+    // Determine which tools are actually being used
+    const usedTools = [];
+    if (isSearchEnabled && toolNames.includes("browser_search")) {
+      usedTools.push("browser_search");
+    }
 
-    // Add the system prompt and current user query to the messages for the LLM call
-    const messagesToSend = [
-      { role: "system", content: systemPrompt },
-      ...plainMessages,
-      { role: "user", content: query },
-    ];
+    // Generate system prompt based on settings and used tools
+    const systemPrompt = await generateSystemPrompt(
+      usedTools,
+      settings,
+      memoryFacts
+    );
 
-    // Prepare the request body according to Groq API specification
+    // Initialize requestBody with required fields
     const requestBody = {
       model: selectedModel,
-      messages: messagesToSend,
-      temperature: modelParameters.temperature,
-      top_p: modelParameters.top_p,
-      stream: true, // Enable streaming
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...plainMessages,
+        { role: "user", content: query },
+      ],
+      stream: true,
     };
 
-    // Add optional parameters only if they are not null/undefined
-    if (modelParameters.max_tokens != null) {
-      requestBody.max_tokens = modelParameters.max_tokens;
+    // Add model parameters, but filter out invalid ones
+    if (modelParameters) {
+      // Add valid parameters that the API expects
+      const validParams = ["temperature", "top_p", "max_tokens", "seed"];
+      validParams.forEach((param) => {
+        if (modelParameters[param] !== undefined) {
+          requestBody[param] = modelParameters[param];
+        }
+      });
     }
 
-    if (modelParameters.seed != null) {
-      requestBody.seed = modelParameters.seed;
-    }
-
-    if (modelParameters.presence_penalty != null) {
-      requestBody.presence_penalty = modelParameters.presence_penalty;
-    }
-
-    if (modelParameters.frequency_penalty != null) {
-      requestBody.frequency_penalty = modelParameters.frequency_penalty;
+    // Conditionally add browser_search tool if enabled
+    if (isSearchEnabled && toolNames.includes("browser_search")) {
+      requestBody.tools = [{ type: "browser_search" }];
     }
 
     // Add reasoning parameters only if the model supports reasoning
-    // Helper function to find a model by ID, including nested models in categories
-    function findModelById(models, id) {
-      for (const model of models) {
-        if (model.id === id) {
-          return model;
-        }
-        if (model.models && Array.isArray(model.models)) {
-          const found = findModelById(model.models, id);
-          if (found) {
-            return found;
-          }
-        }
-      }
-      return null;
-    }
-    
+    // Use the imported availableModels instead of the function parameter
     const selectedModelInfo = findModelById(availableModels, selectedModel);
     if (selectedModelInfo && selectedModelInfo.reasoning) {
       requestBody.reasoning_format = "parsed";
 
       // Add reasoning_effort if specified in model parameters and enabled
       if (
-        modelParameters.reasoning?.enabled &&
-        modelParameters.reasoning.effort
+        modelParameters?.reasoning?.enabled &&
+        modelParameters?.reasoning?.effort
       ) {
         requestBody.reasoning_effort = modelParameters.reasoning.effort;
       }
@@ -153,6 +159,16 @@ export async function* handleIncomingMessage(
               if (parsed.choices && parsed.choices[0]) {
                 const choice = parsed.choices[0];
 
+                // Handle executed tools
+                let executedTools = [];
+                if (choice.delta?.executed_tools) {
+                  console.log(
+                    "Executed tools received from API:",
+                    choice.delta.executed_tools
+                  );
+                  executedTools = choice.delta.executed_tools;
+                }
+
                 // Handle content delta
                 if (choice.delta?.content) {
                   // If we have reasoning enabled and we're getting text content,
@@ -165,10 +181,17 @@ export async function* handleIncomingMessage(
                     reasoningStarted = true;
                   }
 
+                  console.log("Content chunk received:", choice.delta.content);
+
                   yield {
                     content: choice.delta.content,
                     reasoning: null,
+                    executed_tools: executedTools,
                   };
+                  console.log(
+                    "Yielded message chunk with executed_tools:",
+                    executedTools
+                  );
                 }
 
                 // Handle reasoning delta (if available in the response format)
@@ -181,6 +204,21 @@ export async function* handleIncomingMessage(
                   yield {
                     content: null,
                     reasoning: choice.delta.reasoning,
+                    executed_tools: executedTools,
+                  };
+                  console.log(
+                    "Yielded reasoning chunk with executed_tools:",
+                    executedTools
+                  );
+                }
+
+                // Handle case where we have executed_tools but no content or reasoning
+                if (choice.delta?.executed_tools && !choice.delta?.content && !choice.delta?.reasoning) {
+                  console.log("Yielding executed_tools only chunk:", executedTools);
+                  yield {
+                    content: null,
+                    reasoning: null,
+                    executed_tools: executedTools,
                   };
                 }
 

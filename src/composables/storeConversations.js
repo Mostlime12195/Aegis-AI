@@ -20,6 +20,7 @@ export async function createConversation(plainMessages, lastUpdated) {
       reasoningStartTime: msg.reasoningStartTime,
       reasoningEndTime: msg.reasoningEndTime,
       reasoningDuration: msg.reasoningDuration,
+      executed_tools: msg.executed_tools ? JSON.parse(JSON.stringify(msg.executed_tools)) : [], // Ensure executed_tools are serializable
     }),
     // Add any other properties your message objects might have
   }));
@@ -98,9 +99,17 @@ export async function storeMessages(
       reasoningStartTime: msg.reasoningStartTime,
       reasoningEndTime: msg.reasoningEndTime,
       reasoningDuration: msg.reasoningDuration,
+      executed_tools: msg.executed_tools ? JSON.parse(JSON.stringify(msg.executed_tools)) : [], // Ensure executed_tools are serializable
     }),
     // Add any other properties your message objects might have
   }));
+
+  console.log("Storing messages, checking for executed_tools:");
+  rawMessages.forEach((msg, index) => {
+    if (msg.role === "assistant") {
+      console.log(`Message ${index} executed_tools:`, msg.executed_tools);
+    }
+  });
 
   const title = data.title || "Untitled";
 

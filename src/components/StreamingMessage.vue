@@ -10,16 +10,14 @@
 
 <script setup>
 import { ref, watch, onBeforeUnmount, nextTick } from 'vue';
-import MarkdownIt from 'markdown-it';
-import markdownItFootnote from 'markdown-it-footnote';
-import markdownItTaskLists from 'markdown-it-task-lists';
-import markdownItKatex from "markdown-it-katex";
+import { streamingMessageMd as md } from '../utils/markdown';
 import hljs from 'highlight.js';
 
 // props
 const props = defineProps({
   content: { type: String, default: '' },
-  isComplete: { type: Boolean, default: false }
+  isComplete: { type: Boolean, default: false },
+  executedTools: { type: Array, default: () => [] }
 });
 
 const emit = defineEmits(['complete', 'start']);
@@ -29,69 +27,7 @@ const staticContainer = ref(null);
 const streamingContainer = ref(null);
 
 // markdown-it instance + plugins with highlighting
-const md = new MarkdownIt({
-  html: true,
-  linkify: true,
-  typographer: true,
-  highlight: function (str, lang) {
-    if (lang && hljs.getLanguage(lang)) {
-      try {
-        return hljs.highlight(str, { language: lang }).value;
-      } catch (__) { }
-    }
-    return '';
-  }
-})
-  .use(markdownItFootnote)
-  .use(markdownItTaskLists, { enabled: false, label: true, bulletMarker: "-" })
-  .use(markdownItKatex);
-
-// Add custom fence rule for code blocks (same as in ChatPanel)
-const defaultFence = md.renderer.rules.fence || function (tokens, idx, options, env, self) {
-  return self.renderToken(tokens, idx, options);
-}
-
-md.renderer.rules.fence = function (tokens, idx, options, env, self) {
-  const token = tokens[idx];
-  const info = token.info ? md.utils.unescapeAll(token.info).trim() : '';
-  const langName = info ? info.split(/\s+/g)[0] : '';
-
-  // Handle code blocks
-  const code = token.content;
-  const lang = langName || 'text';
-  const langDisplay = lang;
-
-  let highlightedCode;
-  if (lang && hljs.getLanguage(lang)) {
-    try {
-      highlightedCode = hljs.highlight(code, {
-        language: lang,
-        ignoreIllegals: true,
-      }).value;
-    } catch (__) {
-      highlightedCode = md.utils.escapeHtml(code);
-    }
-  } else {
-    highlightedCode = md.utils.escapeHtml(code);
-  }
-
-  // Build HTML using string concatenation to avoid template literal parsing issues
-  return ''
-    + '<div class="code-block-wrapper">'
-    + '<div class="code-block-header">'
-    + '<span class="code-language">' + langDisplay + '</span>'
-    + '<div class="code-actions">'
-    + '<button class="code-action-button" onclick="window.downloadCode(event.currentTarget, \'' + langDisplay + '\')" title="Download file">'
-    + '<span>Download</span>'
-    + '</button>'
-    + '<button class="code-action-button" onclick="window.copyCode(event.currentTarget)" title="Copy code">'
-    + '<span>Copy</span>'
-    + '</button>'
-    + '</div>'
-    + '</div>'
-    + '<pre><code class="hljs ' + md.utils.escapeHtml(lang) + '">' + highlightedCode + '</code></pre>'
-    + '</div>';
-}
+// Using shared instance from utils/markdown.js
 
 // Internal state
 let appendedBlockCount = 0;   // how many complete blocks we've appended to static container
@@ -174,12 +110,26 @@ function splitIntoBlocks(markdown) {
 // Render block to HTML
 function renderBlockHtml(mdText) {
   if (!mdText || mdText.trim().length === 0) return '';
-  return md.render(mdText);
+
+  // Render Markdown - the citation plugin will handle citations automatically
+  const html = md.render(mdText || '');
+
+  // Create a temporary div to hold the HTML
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = html;
+
+  // Process citations in place within the temporary div
+  md.processCitationsInPlace(tempDiv, props.executedTools);
+
+  // Return the processed HTML
+  return tempDiv.innerHTML;
 }
 
 // Append DOM element directly to static container
 function appendElementToStatic() {
-  if (!staticContainer.value || !streamingContainer.value) return;
+  if (!staticContainer.value || !streamingContainer.value) {
+    return;
+  }
 
   // Move all children from streaming container to static container
   while (streamingContainer.value.firstChild) {
@@ -190,10 +140,16 @@ function appendElementToStatic() {
 // Replace streaming container content (avoid churn when identical)
 function setStreamingHtml(html) {
   if (!streamingContainer.value) return;
-  if (lastRenderKey === html) return;
+  if (lastRenderKey === html) {
+    return;
+  }
   lastRenderKey = html;
 
+  // Set the streaming container with the HTML
   streamingContainer.value.innerHTML = html || '';
+
+  // Process citations in place within the streaming container
+  md.processCitationsInPlace(streamingContainer.value, props.executedTools);
 }
 
 // Flush entire message into static container (used on complete)
@@ -208,7 +164,7 @@ function finalizeAll(fullText) {
 
   const fullHtml = md.render(fullText || '');
 
-  // Set the streaming container with the full HTML and then move it to static container
+  // Set the streaming container with the full HTML
   setStreamingHtml(fullHtml);
   appendElementToStatic();
 
@@ -311,6 +267,20 @@ function handleNonPrefixReplace(newContent, isComplete) {
 function processContentNow(newContent, isComplete) {
   newContent = newContent || '';
 
+  // If there was no previous content, treat as fresh and reset message instance
+  if (!prevContent) {
+    // Emit start event when streaming begins
+    if (!hasEmittedStart) {
+      emit('start');
+      hasEmittedStart = true;
+    }
+
+    // Init: split into blocks and render
+    handleNonPrefixReplace(newContent, false);
+    prevContent = newContent;
+    return;
+  }
+
   // If marked complete, finalize entire content
   if (isComplete) {
     finalizeAll(newContent);
@@ -319,20 +289,6 @@ function processContentNow(newContent, isComplete) {
     // Emit event to notify parent that message is complete
     emit('complete');
 
-    return;
-  }
-
-  // If there was no previous content, treat as fresh
-  if (!prevContent) {
-    // Emit start event when streaming begins
-    if (!hasEmittedStart) {
-      emit('start');
-      hasEmittedStart = true;
-    }
-    
-    // Init: split into blocks and render
-    handleNonPrefixReplace(newContent, false);
-    prevContent = newContent;
     return;
   }
 
@@ -366,7 +322,7 @@ watch(
     if (!newContent || newContent.length < prevContent.length) {
       hasEmittedStart = false;
     }
-    
+
     processContentNow(newContent || '', isComplete);
   },
   { immediate: true }

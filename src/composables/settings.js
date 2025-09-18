@@ -22,6 +22,9 @@ class Settings {
       // --- Model Settings ---
       selected_model_id: "qwen/qwen3-32b", // Default model ID
       selected_model_name: "Qwen 3 32B", // Default model name
+      
+      // --- Search Settings ---
+      search_enabled: false, // Whether search is enabled by default
     });
 
     // Add type information for better type safety
@@ -33,6 +36,7 @@ class Settings {
       global_memory_enabled: false, // Add default value for global memory
       selected_model_id: "qwen/qwen3-32b", // Default model ID
       selected_model_name: "Qwen 3 32B", // Default model name
+      search_enabled: false, // Default value for search setting
     };
 
     // Load settings asynchronously

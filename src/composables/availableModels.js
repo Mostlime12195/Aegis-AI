@@ -14,7 +14,7 @@ export const availableModels = [
   {
     id: "openai/gpt-oss-120b",
     name: "GPT OSS 120B",
-    description: "Powerful STEM reasoning",
+    description: "Powerful STEM reasoning & research",
     reasoning: true,
     extra_functions: ["browser_search", "code_interpreter"],
     extra_parameters: {
@@ -23,7 +23,7 @@ export const availableModels = [
   },
   {
     id: "moonshotai/kimi-k2-instruct-0905",
-    name: "Kimi K2 0905",
+    name: "Kimi K2",
     description: "Powerful general-purpose chat model",
     reasoning: false,
     extra_functions: [],
@@ -33,31 +33,14 @@ export const availableModels = [
     category: "Legacy Models",
     models: [
       {
-        id: "moonshotai/kimi-k2-instruct",
-        name: "Kimi K2",
-        description:
-          "Powerful general-purpose chat model, original flavor of Kimi K2",
-        reasoning: false,
-        extra_functions: [],
-        extra_parameters: {},
-      },
-      {
         id: "openai/gpt-oss-20b",
         name: "GPT OSS 20B",
-        description: "Lightning-fast STEM reasoning",
+        description: "Lightning-fast STEM reasoning & research",
         reasoning: true,
         extra_functions: ["browser_search", "code_interpreter"],
         extra_parameters: {
           reasoning_effort: [["low", "medium", "high"], "medium"],
         },
-      },
-      {
-        id: "meta-llama/llama-4-maverick",
-        name: "LLaMA 4 Maverick",
-        description: "Lightning-fast general-purpose non-reasoning model",
-        reasoning: false,
-        extra_functions: [],
-        extra_parameters: {},
       },
     ],
   },

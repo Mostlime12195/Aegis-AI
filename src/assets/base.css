@@ -62,13 +62,17 @@
   --btn-hover: hsla(16, 13%, 72%, 0.5);
   --btn-hover-2: hsla(17, 100%, 96%, 0.6);
 
-  /* Chat panel colors */
-  --text-primary-light: var(--text-primary);
-  --text-secondary-light: var(--text-secondary);
-  --text-primary-dark: var(--text-primary);
-  --text-secondary-dark: var(--text-secondary);
-  --reasoning-border-light: var(--border);
-  --reasoning-border-dark: var(--border);
+  /* Citation styling */
+  --citation-bg: var(--surface);
+  --citation-bg-hover: var(--btn-hover);
+  --citation-border: var(--border);
+  --citation-border-hover: var(--primary-600);
+  --citation-text: var(--text-primary);
+  --citation-text-hover: var(--text-primary);
+  --citation-border-radius: 12px;
+  --citation-padding: 8px 8px;
+  --citation-font-size: 0.65em;
+  --citation-height: 20px;
 
   /* Code block colors */
   --code-bg: #0d1117; /* keep code blocks dark for readability on light pages */
@@ -189,6 +193,14 @@
   --btn-hover: hsla(15, 6%, 27%, 0.4);
   --btn-hover-2: hsla(15, 6%, 27%, 0.4);
 
+  /* Citation styling for dark mode */
+  --citation-bg: var(--bg-tertiary);
+  --citation-bg-hover: var(--btn-hover-2);
+  --citation-border: var(--border);
+  --citation-border-hover: var(--primary-600);
+  --citation-text: var(--text-primary);
+  --citation-text-hover: var(--primary);
+
   /* Chat panel colors for dark mode */
   --text-primary-dark: var(--text-primary);
   --text-secondary-dark: var(--text-secondary);
@@ -223,6 +235,29 @@
   --code-action-hover-text: #e6eef8;
 
   scrollbar-color: #54514d transparent;
+}
+
+.citation-button {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--citation-bg);
+  color: var(--citation-text) !important;
+  border-radius: var(--citation-border-radius);
+  padding: var(--citation-padding);
+  margin: 0 2px 0 6px;
+  font-size: var(--citation-font-size);
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+  vertical-align: baseline;
+  height: var(--citation-height);
+}
+
+.citation-button:hover {
+  background-color: var(--citation-bg-hover);
+  color: var(--citation-text-hover) !important;
 }
 
 *,

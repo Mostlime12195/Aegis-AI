@@ -11,13 +11,13 @@ import { DialogRoot, DialogContent, DialogPortal, DialogOverlay } from 'reka-ui'
 import { createConversation, storeMessages, deleteConversation as deleteConv } from './composables/storeConversations'
 import { updateMemory } from './composables/memory';
 import { handleIncomingMessage } from './composables/message'
+import { availableModels } from './composables/availableModels';
 import Settings from './composables/settings';
-
 
 import MessageForm from './components/MessageForm.vue';
 import ChatPanel from './components/ChatPanel.vue';
 import AppSidebar from './components/AppSidebar.vue'
-import SettingsPanel from './components/SettingsPanel.vue';
+import SettingsPanel from './components/SettingsPanel.vue'
 import TopBar from './components/TopBar.vue';
 import { Icon } from "@iconify/vue";
 
@@ -42,6 +42,9 @@ const isTyping = ref(false);
 const isSettingsOpen = ref(false);
 const settingsInitialTab = ref('general'); // Controls which tab opens in settings panel
 const isScrolledTop = ref(true); // Track if chat is scrolled to top
+
+// Make availableModels reactive
+const models = ref(availableModels);
 
 // Initialize the Settings composable reactively
 const settingsManager = reactive(new Settings());
@@ -107,6 +110,13 @@ async function sendMessage(message) {
     timestamp: new Date(),
     complete: true,
   });
+  console.log("Pushed user message to messages array");
+  // Safely log full messages array
+  try {
+    console.log("Full messages array after user message push:", JSON.parse(JSON.stringify(messages.value)));
+  } catch (e) {
+    console.log("Could not serialize full messages array after user message push:", messages.value);
+  }
 
   // Update global memory with the user's message and conversation context
   // Run in background without blocking the UI
@@ -119,21 +129,31 @@ async function sendMessage(message) {
       });
   }
 
-  const assistantMsg = {
-    id: generateId(),
-    role: "assistant",
-    reasoning: "",
-    content: "",
-    timestamp: new Date(),
-    complete: false,
-    reasoningStartTime: null,
-    reasoningEndTime: null,
-    reasoningDuration: null,
-    error: false, // Add error flag
-    errorDetails: null // Add error details storage
-  };
+      const assistantMsg = {
+      id: generateId(),
+      role: "assistant",
+      reasoning: "",
+      content: "",
+      executed_tools: [], // Add executed_tools array (using underscore naming convention)
+      timestamp: new Date(),
+      complete: false,
+      reasoningStartTime: null,
+      reasoningEndTime: null,
+      reasoningDuration: null,
+      error: false, // Add error flag
+      errorDetails: null // Add error details storage
+    };
+
+    console.log("Created new assistant message:", assistantMsg);
 
   messages.value.push(assistantMsg);
+  console.log("Pushed assistant message to messages array:", assistantMsg);
+  // Safely log full messages array
+  try {
+    // console.log("Full messages array after push:", JSON.parse(JSON.stringify(messages.value)));
+  } catch (e) {
+    // console.log("Could not serialize full messages array after push:", messages.value);
+  }
 
   if (!currConvo.value) {
     currConvo.value = await createConversation(messages.value, new Date());
@@ -150,8 +170,6 @@ async function sendMessage(message) {
   });
 
   // Get current model details from the settingsManager (reactive instance)
-  const { availableModels } = await import('./composables/availableModels');
-  
   // Helper function to find a model by ID, including nested models in categories
   function findModelById(models, id) {
     for (const model of models) {
@@ -167,7 +185,7 @@ async function sendMessage(message) {
     }
     return null;
   }
-  
+
   const selectedModelDetails = findModelById(availableModels, settingsManager.settings.selected_model_id);
 
   if (!selectedModelDetails) {
@@ -192,7 +210,8 @@ async function sendMessage(message) {
       selected_model_id,
       model_parameters, // Pass the entire model_parameters object
       settingsManager.settings, // Pass user settings
-      selectedModelDetails.extra_functions || [] // Pass available tool names
+      selectedModelDetails.extra_functions || [], // Pass available tool names
+      settingsManager.settings.search_enabled || false // Pass search toggle state
     );
 
     for await (const chunk of streamGenerator) {
@@ -221,18 +240,43 @@ async function sendMessage(message) {
         }
       }
 
-      // Handle errors
-      if (chunk.error) {
-        assistantMsg.error = true;
-        assistantMsg.errorDetails = chunk.errorDetails;
-        if (chunk.errorDetails) {
-          assistantMsg.content += `
-[ERROR: ${chunk.errorDetails.message}]`;
-        }
+      // Process executed tools
+      if (chunk.executed_tools && chunk.executed_tools.length > 0) {
+        console.log("Processing executed tools in chunk:", chunk.executed_tools);
+        console.log("Chunk type:", { hasContent: !!chunk.content, hasReasoning: !!chunk.reasoning });
+        // Add new tools to the executed_tools array, avoiding duplicates
+        chunk.executed_tools.forEach(tool => {
+          console.log("Processing tool:", tool);
+          // Check if tool with same index already exists
+          const existingToolIndex = assistantMsg.executed_tools.findIndex(t => t.index === tool.index);
+          if (existingToolIndex >= 0) {
+            // Update existing tool
+            console.log("Updating existing tool at index:", existingToolIndex);
+            assistantMsg.executed_tools[existingToolIndex] = tool;
+          } else {
+            // Add new tool
+            console.log("Adding new tool");
+            assistantMsg.executed_tools.push(tool);
+          }
+        });
+        console.log("Updated executed_tools array:", assistantMsg.executed_tools);
       }
 
-      // Update the messages array
-      messages.value[messages.value.length - 1] = { ...assistantMsg };
+      // Update the messages array with a new object to trigger reactivity
+      console.log("Updating messages array, current executed_tools:", assistantMsg.executed_tools);
+      // Create a new object with a copy of the assistantMsg to ensure reactivity
+      const updatedMsg = {
+        ...assistantMsg,
+        executed_tools: [...assistantMsg.executed_tools] // Create a new array to ensure reactivity
+      };
+      // Use Vue's array mutation method to ensure reactivity
+      messages.value.splice(messages.value.length - 1, 1, updatedMsg);
+      // Safely log full messages array
+      try {
+        console.log("Full messages array after update:", JSON.parse(JSON.stringify(messages.value))); // Log full messages array
+      } catch (e) {
+        console.log("Could not serialize full messages array after update:", messages.value);
+      }
 
       // Allow Vue to render updates before scrolling
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -265,9 +309,10 @@ async function sendMessage(message) {
     }
 
     // Make sure we have a copy of the final message
-    messages.value[messages.value.length - 1] = { ...assistantMsg };
+    console.log("Final message update, executed_tools:", assistantMsg.executed_tools);
+    // Use Vue's array mutation method to ensure reactivity
+    messages.value.splice(messages.value.length - 1, 1, { ...assistantMsg });
     await storeMessages(currConvo.value, messages.value, new Date());
-    await nextTick();
   }
 }
 
@@ -288,16 +333,22 @@ async function changeConversation(id) {
   currConvo.value = id;
 
   const conv = await localforage.getItem(`conversation_${currConvo.value}`);
+  console.log("Loaded conversation data:", conv);
   // --- START CHANGES HERE: Convert date strings back to Date objects ---
   if (conv?.messages) {
     messages.value = conv.messages.map(msg => {
+      console.log("Processing stored message:", msg);
       if (msg.role === 'assistant') {
-        return {
+        const processedMsg = {
           ...msg,
           // Convert ISO strings back to Date objects if they exist
           reasoningStartTime: msg.reasoningStartTime ? new Date(msg.reasoningStartTime) : null,
           reasoningEndTime: msg.reasoningEndTime ? new Date(msg.reasoningEndTime) : null,
+          // Ensure executed_tools property exists
+          executed_tools: msg.executed_tools || []
         };
+        console.log("Processed assistant message executed_tools:", processedMsg.executed_tools);
+        return processedMsg;
       }
       return msg;
     });
@@ -366,6 +417,8 @@ function openSettingsPanel(tabKey = 'general') {
   isSettingsOpen.value = true;
 }
 
+
+
 </script>
 
 <template>
@@ -385,21 +438,18 @@ function openSettingsPanel(tabKey = 'general') {
       - MessageForm: Fixed position at bottom, centered with dynamic width
     -->
     <div class="main-container" :class="{ 'sidebar-open': sidebarOpen }">
-      <TopBar 
-        :is-scrolled-top="isScrolledTop" 
-        :selected-model-name="selectedModelName"
-        :selected-model-id="selectedModelId"
-        :toggle-sidebar="toggleSidebar"
-        :sidebar-open="sidebarOpen"
-        @model-selected="handleModelSelect"
-      />
+      <TopBar :is-scrolled-top="isScrolledTop" :selected-model-name="selectedModelName"
+        :selected-model-id="selectedModelId" :toggle-sidebar="toggleSidebar" :sidebar-open="sidebarOpen"
+        @model-selected="handleModelSelect" />
 
       <ChatPanel ref="chatPanel" :curr-convo="currConvo" :curr-messages="messages" :isLoading="isLoading"
         :conversationTitle="conversationTitle" :show-welcome="!currConvo && !isTyping" :is-dark="isDark"
         @set-message="text => $refs.messageForm.setMessage(text)" @scroll="handleChatScroll" />
-      <MessageForm ref="messageForm" :isLoading="isLoading" :selected-model-name="selectedModelName"
-        :selected-model-id="selectedModelId" :on-model-select="handleModelSelect" @typing="isTyping = true"
-        @empty="isTyping = false" @send-message="sendMessage" @abort-controller="controller.abort()" />
+      <MessageForm ref="messageForm" :is-loading="isLoading"
+        :selected-model-id="selectedModelId" :available-models="models"
+        :selected-model-name="selectedModelName" :settings-manager="settingsManager"
+        @typing="isTyping = true" @empty="isTyping = false"
+        @send-message="sendMessage" @abort-controller="controller.abort()"/>
     </div>
     <DialogRoot v-model:open="isSettingsOpen">
       <DialogPortal>
@@ -505,7 +555,7 @@ button:hover {
   width: 100%;
   z-index: 1000;
   flex-shrink: 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid transparent;
   transition: border-bottom 0.2s ease;
 }
 
