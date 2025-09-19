@@ -66,8 +66,24 @@ onMounted(async () => {
  * This will be displayed in the MessageForm.
  */
 const selectedModelName = computed(() => {
+  // Helper function to find a model by ID, including nested models in categories
+  function findModelById(models, id) {
+    for (const model of models) {
+      if (model.id === id) {
+        return model;
+      }
+      if (model.models && Array.isArray(model.models)) {
+        const found = findModelById(model.models, id);
+        if (found) {
+          return found;
+        }
+      }
+    }
+    return null;
+  }
+
   // Find the model in our available models and return its name
-  const selectedModel = availableModels.find(model => model.id === settingsManager.settings.selected_model_id);
+  const selectedModel = findModelById(availableModels, settingsManager.settings.selected_model_id);
   return selectedModel ? selectedModel.name : 'Loading...';
 });
 
