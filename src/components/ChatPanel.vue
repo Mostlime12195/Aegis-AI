@@ -227,6 +227,23 @@ function onStreamingMessageComplete(messageId) {
   }
 }
 
+// Function to copy message content
+function copyMessage(content, event) {
+  const button = event.currentTarget;
+
+  navigator.clipboard.writeText(content).then(() => {
+    // Visual feedback - temporarily change button to success state
+    button.classList.add('copied');
+
+    setTimeout(() => {
+      button.classList.remove('copied');
+    }, 2000);
+  }).catch(err => {
+    console.error('Failed to copy message:', err);
+    // Visual feedback for error - could add error styling here
+  });
+}
+
 defineExpose({ scrollToEnd, isAtBottom });
 </script>
 
@@ -282,6 +299,12 @@ defineExpose({ scrollToEnd, isAtBottom });
                     :executed-tools="message.executed_tools || []" @complete="onStreamingMessageComplete(message.id)"
                     @start="onStreamingMessageStart(message.id)" />
                 </div>
+              </div>
+              <div class="copy-button-container" :class="{ 'user-copy-container': message.role === 'user' }">
+                <button class="copy-button" @click="copyMessage(message.content, $event)" :title="'Copy message'"
+                  aria-label="Copy message">
+                  <Icon icon="material-symbols:content-copy-outline-rounded" width="32px" height="32px" />
+                </button>
               </div>
             </div>
           </div>
@@ -367,7 +390,7 @@ defineExpose({ scrollToEnd, isAtBottom });
   display: block;
   width: 100%;
   max-width: 800px;
-  margin: 1.5rem auto;
+  margin: 0 auto;
   position: relative;
   transition: all 0.3s cubic-bezier(.4, 1, .6, 1);
 }
@@ -630,6 +653,45 @@ defineExpose({ scrollToEnd, isAtBottom });
 .dark .markdown-content blockquote {
   border-left-color: var(--reasoning-border-dark);
   color: var(--text-secondary-dark);
+}
+
+.copy-button-container {
+  margin-top: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.message:hover .copy-button-container {
+  opacity: 1;
+}
+
+.copy-button-container.user-copy-container {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.copy-button {
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  padding: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+.copy-button:hover {
+  background: var(--btn-hover);
+  color: var(--text-primary);
+}
+
+.copy-button.copied {
+  color: var(--success) !important;
 }
 
 
