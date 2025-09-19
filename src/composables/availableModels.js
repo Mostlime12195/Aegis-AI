@@ -3,7 +3,7 @@ export const availableModels = [
   {
     id: "qwen/qwen3-32b",
     name: "Qwen 3 32B",
-    description: "Fast, general-purpose reasoning",
+    description: "Fast, general-purpose chat",
     reasoning: true,
     extra_functions: [],
     extra_parameters: {
@@ -24,7 +24,7 @@ export const availableModels = [
   {
     id: "moonshotai/kimi-k2-instruct-0905",
     name: "Kimi K2",
-    description: "Powerful general-purpose chat model",
+    description: "Powerful general-purpose chat",
     reasoning: false,
     extra_functions: [],
     extra_parameters: {},
