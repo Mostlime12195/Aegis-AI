@@ -7,7 +7,7 @@ export const availableModels = [
     reasoning: true,
     extra_functions: [],
     extra_parameters: {
-      reasoning_effort: [["default", "none"], "default"],
+      reasoning_effort: [["default", "none"], "none"],
     },
     default: true,
   },
