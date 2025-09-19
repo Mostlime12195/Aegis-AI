@@ -898,10 +898,6 @@ defineExpose({ scrollToEnd, isAtBottom });
   margin: 1em 0;
 }
 
-.markdown-content .katex-html {
-  display: inline-block;
-}
-
 .loading-animation {
   display: flex;
   padding: 12px 16px;

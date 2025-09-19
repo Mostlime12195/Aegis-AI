@@ -301,6 +301,14 @@ body {
 }
 
 /* Reka UI Dropdown Menu Styles */
+.popover-dropdown {
+  background-color: var(--popover-bg);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--popover-border);
+}
+
 .model-selector-dropdown {
   animation: popIn 0.2s ease-out forwards;
   min-width: 300px;

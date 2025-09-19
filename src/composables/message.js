@@ -93,11 +93,9 @@ export async function* handleIncomingMessage(
     if (selectedModelInfo && selectedModelInfo.reasoning) {
       requestBody.reasoning_format = "parsed";
 
-      // Add reasoning_effort if specified in model parameters and enabled
-      if (
-        modelParameters?.reasoning?.enabled &&
-        modelParameters?.reasoning?.effort
-      ) {
+      // Add reasoning_effort if specified in model parameters
+      // For Qwen model, we need to include "none" when reasoning is disabled
+      if (modelParameters?.reasoning?.effort) {
         requestBody.reasoning_effort = modelParameters.reasoning.effort;
       }
     }

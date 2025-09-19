@@ -55,9 +55,9 @@ onMounted(async () => {
   if (!settingsManager.settings.selected_model_id) {
     settingsManager.settings.selected_model_id = "qwen/qwen3-32b"; // Default model ID
   }
-  // Update the selected model name if not already set
-  if (!settingsManager.settings.selected_model_name) {
-    settingsManager.settings.selected_model_name = "Qwen 3 32B"; // Default model name
+  // Update the selected model ID if not already set
+  if (!settingsManager.settings.selected_model_id) {
+    settingsManager.settings.selected_model_id = "moonshotai/kimi-k2-instruct-0905"; // Default model ID
   }
 });
 
@@ -66,7 +66,9 @@ onMounted(async () => {
  * This will be displayed in the MessageForm.
  */
 const selectedModelName = computed(() => {
-  return settingsManager.settings.selected_model_name || 'Loading...';
+  // Find the model in our available models and return its name
+  const selectedModel = availableModels.find(model => model.id === settingsManager.settings.selected_model_id);
+  return selectedModel ? selectedModel.name : 'Loading...';
 });
 
 /**
@@ -197,10 +199,20 @@ async function sendMessage(message) {
   }
 
   // Update the selected model name in settings for the UI
-  settingsManager.settings.selected_model_name = selectedModelDetails.name;
-
   const selected_model_id = selectedModelDetails.id;
-  const model_parameters = selectedModelDetails.extra_parameters || {}; // This object contains model parameters
+  
+  // Construct modelParameters object with reasoning settings from settings manager
+  const savedReasoningEffort = settingsManager.getModelSetting(selected_model_id, "reasoning_effort") || 
+                               (selectedModelDetails.extra_parameters?.reasoning_effort?.[1] || "default");
+  
+  const model_parameters = {
+    ...selectedModelDetails.extra_parameters, // Include default model parameters
+    reasoning: {
+      // Reasoning is always enabled when the model supports it
+      enabled: true,
+      effort: savedReasoningEffort
+    }
+  };
 
   try {
     const streamGenerator = handleIncomingMessage(
@@ -405,7 +417,6 @@ function handleChatScroll(event) {
  */
 function handleModelSelect(modelId, modelName) {
   settingsManager.settings.selected_model_id = modelId;
-  settingsManager.settings.selected_model_name = modelName;  // Trigger a reactive update
   settingsManager.saveSettings();
 }
 

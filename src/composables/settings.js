@@ -20,11 +20,13 @@ class Settings {
       global_memory_enabled: false, // Whether global memory is enabled
       
       // --- Model Settings ---
-      selected_model_id: "qwen/qwen3-32b", // Default model ID
-      selected_model_name: "Qwen 3 32B", // Default model name
+      selected_model_id: "moonshotai/kimi-k2-instruct-0905", // Default model ID
       
       // --- Search Settings ---
       search_enabled: false, // Whether search is enabled by default
+      
+      // --- Model-Specific Settings ---
+      model_settings: {}, // Per-model settings storage
     });
 
     // Add type information for better type safety
@@ -34,9 +36,9 @@ class Settings {
     this.defaultSettings = {
       version: 2,
       global_memory_enabled: false, // Add default value for global memory
-      selected_model_id: "qwen/qwen3-32b", // Default model ID
-      selected_model_name: "Qwen 3 32B", // Default model name
+      selected_model_id: "moonshotai/kimi-k2-instruct-0905", // Default model ID
       search_enabled: false, // Default value for search setting
+      model_settings: {}, // Default value for model settings
     };
 
     // Load settings asynchronously
@@ -155,6 +157,38 @@ class Settings {
    */
   setSetting(key, value) {
     this.settings[key] = value;
+    // We don't save here automatically to avoid excessive writes.
+    // saveSettings() should be called explicitly by the UI logic after changes,
+    // or if the change necessitates immediate persistence.
+  }
+
+  /**
+   * Gets a setting for a specific model.
+   * @param {string} modelId - The model ID
+   * @param {string} key - The setting key
+   * @returns {*} The value of the setting for the model.
+   */
+  getModelSetting(modelId, key) {
+    if (this.settings.model_settings && this.settings.model_settings[modelId]) {
+      return this.settings.model_settings[modelId][key];
+    }
+    return undefined;
+  }
+
+  /**
+   * Sets a setting for a specific model.
+   * @param {string} modelId - The model ID
+   * @param {string} key - The setting key
+   * @param {*} value - The new value for the setting.
+   */
+  setModelSetting(modelId, key, value) {
+    if (!this.settings.model_settings) {
+      this.settings.model_settings = {};
+    }
+    if (!this.settings.model_settings[modelId]) {
+      this.settings.model_settings[modelId] = {};
+    }
+    this.settings.model_settings[modelId][key] = value;
     // We don't save here automatically to avoid excessive writes.
     // saveSettings() should be called explicitly by the UI logic after changes,
     // or if the change necessitates immediate persistence.

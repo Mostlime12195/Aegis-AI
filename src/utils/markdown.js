@@ -1,7 +1,8 @@
 import MarkdownIt from "markdown-it";
 import markdownItFootnote from "markdown-it-footnote";
 import markdownItTaskLists from "markdown-it-task-lists";
-import markdownItKatex from "markdown-it-katex";
+import markdownItTexmath from "markdown-it-texmath";
+import katex from "katex";
 import hljs from "highlight.js";
 
 // Simple markdown-it plugin for detecting citations in the format 【N†Lx-Ly】
@@ -183,10 +184,14 @@ const createMarkdownInstance = () => {
 const chatPanelMd = createMarkdownInstance();
 const streamingMessageMd = createMarkdownInstance();
 
-// Add katex only to chatPanel instance
-chatPanelMd.use(markdownItKatex, {
-  throwOnError: false,
-  errorColor: " #cc0000",
+// Add texmath only to chatPanel instance with support for both dollar signs and brackets
+chatPanelMd.use(markdownItTexmath, {
+  engine: katex,
+  delimiters: ['dollars', 'brackets'],
+  katexOptions: {
+    throwOnError: false,
+    errorColor: " #cc0000",
+  }
 });
 
 export { chatPanelMd, streamingMessageMd };

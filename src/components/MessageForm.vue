@@ -1,6 +1,20 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted } from "vue";
 import { Icon } from "@iconify/vue";
+import {
+  SelectContent,
+  SelectItem,
+  SelectRoot,
+  SelectTrigger,
+  SelectValue,
+  SelectViewport,
+} from "reka-ui";
+import {
+  DropdownMenuRoot,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "reka-ui";
 
 // Define component properties and emitted events
 const props = defineProps({
@@ -19,12 +33,62 @@ const emit = defineEmits([
 // Local state for search toggle
 const isSearchEnabled = ref(false);
 
+// Local state for reasoning effort
+const reasoningEffort = ref("default");
+
 // --- Reactive State ---
 const inputMessage = ref("");
 const textareaRef = ref(null); // Ref for the textarea element
 
 // Computed property to check if the input is empty (after trimming whitespace)
 const trimmedMessage = computed(() => inputMessage.value.trim());
+
+// Computed property to get the selected model object
+const selectedModel = computed(() => {
+  if (!props.selectedModelId || !props.availableModels) return null;
+
+  // Helper function to find a model by ID, including nested models in categories
+  function findModelById(models, id) {
+    for (const model of models) {
+      if (model.id === id) {
+        return model;
+      }
+      if (model.models && Array.isArray(model.models)) {
+        const found = findModelById(model.models, id);
+        if (found) {
+          return found;
+        }
+      }
+    }
+    return null;
+  }
+
+  return findModelById(props.availableModels, props.selectedModelId);
+});
+
+// Computed property to check if the current model supports reasoning effort
+const isReasoningEffortSupported = computed(() => {
+  return selectedModel.value && selectedModel.value.extra_parameters &&
+    selectedModel.value.extra_parameters.reasoning_effort;
+});
+
+// Computed property to get reasoning effort options for the current model
+// Reversing the order so that "high" appears at the top and "low" at the bottom
+const reasoningEffortOptions = computed(() => {
+  if (!isReasoningEffortSupported.value) return [];
+  const options = selectedModel.value.extra_parameters.reasoning_effort[0];
+  // For GPT OSS models, we want high at top and low at bottom
+  if (selectedModel.value.id.includes('gpt-oss')) {
+    return [...options].reverse();
+  }
+  return options;
+});
+
+// Computed property to get the default reasoning effort for the current model
+const defaultReasoningEffort = computed(() => {
+  if (!isReasoningEffortSupported.value) return "default";
+  return selectedModel.value.extra_parameters.reasoning_effort[1];
+});
 
 // Computed property to check if the current model supports browser search
 const isBrowserSearchSupported = computed(() => {
@@ -55,6 +119,24 @@ watch(
   () => props.settingsManager?.settings?.search_enabled,
   (newValue) => {
     isSearchEnabled.value = newValue || false;
+  },
+  { immediate: true }
+);
+
+// Watch the selected model and load the appropriate reasoning effort setting
+watch(
+  () => [props.selectedModelId, props.settingsManager?.settings?.model_settings],
+  ([newModelId]) => {
+    if (newModelId && props.settingsManager) {
+      const savedReasoningEffort = props.settingsManager.getModelSetting(newModelId, "reasoning_effort");
+      if (savedReasoningEffort !== undefined) {
+        reasoningEffort.value = savedReasoningEffort;
+      } else if (defaultReasoningEffort.value) {
+        reasoningEffort.value = defaultReasoningEffort.value;
+      } else {
+        reasoningEffort.value = "default";
+      }
+    }
   },
   { immediate: true }
 );
@@ -97,7 +179,9 @@ function handleEnterKey(event) {
 
 // --- Core Logic ---
 
-/**\n * Emits the message to the parent, then clears the input.\n */
+/**
+ * Emits the message to the parent, then clears the input.
+ */
 async function submitMessage() {
   emit("send-message", inputMessage.value);
   inputMessage.value = "";
@@ -151,8 +235,34 @@ function toggleSearch() {
   }
 }
 
+/**
+ * Toggles the reasoning effort and updates the settings
+ */
+function toggleReasoning() {
+  // For qwen3-32b, toggle between "default" and "none"
+  reasoningEffort.value = reasoningEffort.value === "default" ? "none" : "default";
+  // Update the setting in the settings manager
+  if (props.settingsManager && props.selectedModelId) {
+    props.settingsManager.setModelSetting(props.selectedModelId, "reasoning_effort", reasoningEffort.value);
+    props.settingsManager.saveSettings();
+  }
+}
+
+/**
+ * Sets the reasoning effort for GPT-OSS models and updates the settings
+ * @param {string} value - The selected reasoning effort value
+ */
+function setReasoningEffort(value) {
+  reasoningEffort.value = value;
+  // Update the setting in the settings manager
+  if (props.settingsManager && props.selectedModelId) {
+    props.settingsManager.setModelSetting(props.selectedModelId, "reasoning_effort", value);
+    props.settingsManager.saveSettings();
+  }
+}
+
 // Expose the setMessage function to be called from the parent component
-defineExpose({ setMessage, toggleSearch });
+defineExpose({ setMessage, toggleSearch, toggleReasoning, setReasoningEffort });
 </script>
 
 <template>
@@ -163,15 +273,44 @@ defineExpose({ setMessage, toggleSearch });
 
       <div class="input-actions">
         <!-- Search toggle button -->
-        <button v-if="isBrowserSearchSupported" type="button" class="search-toggle-btn"
+        <button v-if="isBrowserSearchSupported" type="button" class="feature-button search-toggle-btn"
           :class="{ 'search-enabled': isSearchEnabled }" @click="toggleSearch"
           :aria-label="isSearchEnabled ? 'Disable web search' : 'Enable web search'">
           <Icon icon="material-symbols:globe" width="22" height="22" />
           <span class="search-label">Search</span>
         </button>
 
+        <!-- Reasoning toggle for qwen3-32b -->
+        <button v-if="selectedModel && selectedModel.id === 'qwen/qwen3-32b' && isReasoningEffortSupported"
+          type="button" class="feature-button search-toggle-btn"
+          :class="{ 'search-enabled': reasoningEffort === 'default' }" @click="toggleReasoning"
+          :aria-label="reasoningEffort === 'default' ? 'Disable reasoning' : 'Enable reasoning'">
+          <Icon icon="material-symbols:lightbulb" width="22" height="22" />
+          <span class="search-label">Reasoning</span>
+        </button>
+
+        <!-- Reasoning effort dropdown for GPT-OSS models with more than 2 options -->
+        <DropdownMenuRoot
+          v-if="selectedModel && selectedModel.id !== 'qwen/qwen3-32b' && isReasoningEffortSupported && reasoningEffortOptions.length > 2">
+          <DropdownMenuTrigger class="feature-button search-toggle-btn">
+            <Icon icon="material-symbols:lightbulb" width="22" height="22" />
+            <span>{{ reasoningEffort.charAt(0).toUpperCase() + reasoningEffort.slice(1) }} Reasoning</span>
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent class="popover-dropdown reasoning-effort-dropdown" side="top" align="center"
+            :side-offset="8">
+            <div class="dropdown-scroll-container">
+              <DropdownMenuItem v-for="option in reasoningEffortOptions" :key="option" class="reasoning-effort-item"
+                :class="{ selected: option === reasoningEffort }" @click="() => setReasoningEffort(option)">
+                <span>{{ option.charAt(0).toUpperCase() + option.slice(1) }} Reasoning</span>
+              </DropdownMenuItem>
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenuRoot>
+
         <button type="submit" class="action-btn send-btn" :disabled="!trimmedMessage && !isLoading"
-          @click="handleActionClick" :aria-label="isLoading ? 'Stop generation' : 'Send message'">
+          @click="handleActionClick" :aria-label="isLoading ? 'Stop generation' : 'Send message'"
+          style="margin-left: auto;">
           <Icon v-if="!isLoading" icon="material-symbols:send-rounded" width="22" height="22" />
           <Icon v-else icon="material-symbols:stop-rounded" width="22" height="22" />
         </button>
@@ -267,8 +406,8 @@ defineExpose({ setMessage, toggleSearch });
   opacity: 0.7;
 }
 
-/* Search toggle button styles */
-.search-toggle-btn {
+/* Feature button base styles */
+.feature-button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -279,14 +418,15 @@ defineExpose({ setMessage, toggleSearch });
   color: var(--btn-model-selector-text);
   border: 1px solid var(--border);
   cursor: pointer;
-  margin-right: auto;
   flex-shrink: 0;
   font-weight: 500;
   font-size: 13px;
   transition: all 0.2s ease;
+  height: 36px;
+  margin: 0;
 }
 
-.search-toggle-btn:hover:not(:disabled) {
+.feature-button:hover:not(:disabled) {
   background-color: var(--btn-model-selector-hover-bg);
 }
 
@@ -303,15 +443,16 @@ defineExpose({ setMessage, toggleSearch });
 
 .search-label {
   font-weight: 500;
-  font-size: 16px;
+  font-size: 13px;
 }
 
 .input-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   align-items: center;
   padding: 8px 4px 0;
   gap: 6px;
+  width: 100%;
 }
 
 /* Adjust message form position when sidebar is open */
@@ -321,6 +462,59 @@ defineExpose({ setMessage, toggleSearch });
     right: 0;
     width: calc(100% - 280px);
     transition: all 0.3s cubic-bezier(.4, 1, .6, 1);
+  }
+}
+
+/* Reasoning effort dropdown styles */
+.reasoning-effort-dropdown {
+  animation: popIn 0.2s ease-out forwards;
+  min-width: 200px;
+  background: var(--popover-bg);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: var(--popover-shadow);
+  border: 1px solid var(--popover-border);
+  z-index: 1001;
+}
+
+.reasoning-effort-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  background: none;
+  color: var(--popover-list-item-text);
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+  font-size: 0.95rem;
+  border-radius: 6px;
+  margin-bottom: 2px;
+  border: none;
+}
+
+.reasoning-effort-item:hover {
+  background-color: var(--popover-list-item-bg-hover);
+}
+
+.reasoning-effort-item.selected {
+  background-color: var(--popover-list-item-selected-bg);
+  color: var(--popover-list-item-selected-text);
+  font-weight: 500;
+}
+
+/* Animation for dropdown */
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(-5px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
   }
 }
 </style>
