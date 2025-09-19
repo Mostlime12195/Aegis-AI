@@ -74,15 +74,6 @@
   --citation-font-size: 0.65em;
   --citation-height: 20px;
 
-  /* Code block colors */
-  --code-bg: #0d1117; /* keep code blocks dark for readability on light pages */
-  --code-header-bg: #141821;
-  --code-border: #2b333a;
-  --code-text: #c9d1d9;
-  --code-action-text: #8b949e;
-  --code-action-hover-bg: rgba(173, 186, 199, 0.06);
-  --code-action-hover-text: #c9d1d9;
-
   /* Message form colors */
   --bg-input: var(--elevated-surface);
   --bg-sidebar: var(--surface);
@@ -224,15 +215,6 @@
   --popover-list-item-text: var(--text-primary);
   --popover-list-item-selected-bg: var(--border);
   --popover-list-item-selected-text: var(--text-primary);
-
-  /* Code block adjustments for dark */
-  --code-bg: #07121a;
-  --code-header-bg: #0d141a;
-  --code-border: #1f2a33;
-  --code-text: #e6eef8;
-  --code-action-text: #aab7c2;
-  --code-action-hover-bg: rgba(255, 255, 255, 0.03);
-  --code-action-hover-text: #e6eef8;
 
   scrollbar-color: #54514d transparent;
 }

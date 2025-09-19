@@ -3,59 +3,12 @@ import { onMounted, onUnmounted, ref, watch, nextTick, computed, reactive } from
 import { Icon } from "@iconify/vue";
 import hljs from "highlight.js";
 import { chatPanelMd as md } from '../utils/markdown';
+import { copyCode, downloadCode } from '../utils/codeBlockUtils';
 import StreamingMessage from './StreamingMessage.vue';
 import LoadingSpinner from './LoadingSpinner.vue';
 
 // Initialize markdown-it with plugins (without markdown-it-katex)
 // Using shared instance from utils/markdown.js
-
-
-// Add custom fence rule for code blocks
-const defaultFence = md.renderer.rules.fence || function (tokens, idx, options, env, self) {
-  return self.renderToken(tokens, idx, options);
-}
-
-md.renderer.rules.fence = function (tokens, idx, options, env, self) {
-  const token = tokens[idx];
-  const info = token.info ? md.utils.unescapeAll(token.info).trim() : '';
-  const langName = info ? info.split(/\s+/g)[0] : '';
-
-  // Handle code blocks
-  const code = token.content;
-  const lang = langName || 'text';
-  const langDisplay = lang;
-
-  let highlightedCode;
-  if (lang && hljs.getLanguage(lang)) {
-    try {
-      highlightedCode = hljs.highlight(code, {
-        language: lang,
-        ignoreIllegals: true,
-      }).value;
-    } catch (__) {
-      highlightedCode = md.utils.escapeHtml(code);
-    }
-  } else {
-    highlightedCode = md.utils.escapeHtml(code);
-  }
-
-  // Build HTML using string concatenation to avoid template literal parsing issues
-  return ''
-    + '<div class="code-block-wrapper">'
-    + '<div class="code-block-header">'
-    + '<span class="code-language">' + langDisplay + '</span>'
-    + '<div class="code-actions">'
-    + '<button class="code-action-button" onclick="window.downloadCode(event.currentTarget, \'' + langDisplay + '\')" title="Download file">'
-    + '<span>Download</span>'
-    + '</button>'
-    + '<button class="code-action-button" onclick="window.copyCode(event.currentTarget)" title="Copy code">'
-    + '<span>Copy</span>'
-    + '</button>'
-    + '</div>'
-    + '</div>'
-    + '<pre><code class="hljs ' + md.utils.escapeHtml(lang) + '">' + highlightedCode + '</code></pre>'
-    + '</div>';
-}
 
 const props = defineProps({
   currConvo: {
@@ -85,30 +38,6 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["send-message", "set-message", "scroll"]);
-
-const langExtMap = {
-  python: "py",
-  javascript: "js",
-  typescript: "ts",
-  html: "html",
-  css: "css",
-  vue: "vue",
-  json: "json",
-  markdown: "md",
-  shell: "sh",
-  bash: "sh",
-  java: "java",
-  c: "c",
-  cpp: "cpp",
-  csharp: "cs",
-  go: "go",
-  rust: "rs",
-  ruby: "rb",
-  php: "php",
-  sql: "sql",
-  xml: "xml",
-  yaml: "yml",
-}
 
 const liveReasoningTimers = reactive({});
 const timerIntervals = {};
@@ -253,40 +182,6 @@ onUnmounted(() => {
   });
 });
 
-function copyCode(button) {
-  const codeEl = button
-    .closest(".code-block-wrapper")
-    .querySelector("pre code");
-  const text = codeEl.innerText;
-  navigator.clipboard.writeText(text).then(() => {
-    const textEl = button.querySelector("span");
-    textEl.textContent = "Copied!";
-    button.classList.add("copied");
-    setTimeout(() => {
-      textEl.textContent = "Copy";
-      button.classList.remove("copied");
-    }, 2000);
-  });
-};
-
-function downloadCode(button, lang) {
-  const codeEl = button
-    .closest(".code-block-wrapper")
-    .querySelector("pre code");
-  const code = codeEl.innerText;
-  const extension = langExtMap[lang.toLowerCase()] || "txt";
-  const filename = `code-${Date.now()}.${extension}`;
-  const blob = new Blob([code], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-};
-
 // Render message content with markdown
 function renderMessageContent(content, executedTools) {
   // Render Markdown - the citation plugin will handle citations automatically
@@ -394,34 +289,6 @@ defineExpose({ scrollToEnd, isAtBottom });
   --text-secondary-dark: var(--text-secondary);
   --reasoning-border-light: var(--border);
   --reasoning-border-dark: var(--border);
-  --code-bg: #0d1117;
-  --code-header-bg: #161b22;
-  --code-border: #30363d;
-  --code-text: #c9d1d9;
-  --code-action-text: #8b949e;
-  --code-action-hover-bg: rgba(173, 186, 199, 0.1);
-  --code-action-hover-text: #c9d1d9;
-  --code-bg-light: #e4dfd8;
-  --code-header-bg-light: #ddd7d1;
-  --code-border-light: #cabdb6;
-  --code-text-light: #3a2119;
-  --code-action-text-light: #63564b;
-  --code-action-hover-bg-light: rgba(192, 74, 44, 0.1);
-  --code-action-hover-text-light: #3a2119;
-  --code-comment-light: #6b7280;
-  --code-keyword-light: #9d1d04;
-  --code-function-light: #2d4a7e;
-  --code-string-light: #9d5b04;
-  --code-number-light: #106f5d;
-  --code-variable-light: #5b3a88;
-  --code-property-light: #046d3d;
-  --code-comment-dark: #8b949e;
-  --code-keyword-dark: #ff7b72;
-  --code-function-dark: #d2a8ff;
-  --code-string-dark: #a5d6ff;
-  --code-number-dark: #79c0ff;
-  --code-variable-dark: #ffa657;
-  --code-property-dark: #7ee787;
   flex: 1;
   overflow-y: auto;
   position: relative;
@@ -591,119 +458,6 @@ defineExpose({ scrollToEnd, isAtBottom });
   display: none;
 }
 
-.markdown-content .code-block-wrapper {
-  background-color: var(--code-bg-light);
-  border: 1px solid var(--code-border-light);
-  border-radius: 8px;
-  margin: 1em 0;
-  overflow: hidden;
-  max-width: 800px;
-  margin-left: auto;
-  margin-right: auto;
-  box-sizing: border-box;
-  transition: all 0.3s cubic-bezier(.4, 1, .6, 1);
-}
-
-.dark .markdown-content .code-block-wrapper {
-  background-color: var(--code-bg);
-  border-color: var(--code-border);
-}
-
-.code-block-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: var(--code-header-bg-light);
-  padding: 8px 8px 8px 16px;
-  border-bottom: 1px solid var(--code-border-light);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.dark .code-block-header {
-  background-color: var(--code-header-bg);
-  border-bottom-color: var(--code-border);
-}
-
-.code-language {
-  font-family: monospace;
-  font-size: 0.85em;
-  color: var(--code-action-text-light);
-  text-transform: lowercase;
-}
-
-.dark .code-language {
-  color: var(--code-action-text);
-}
-
-.code-actions {
-  display: flex;
-  gap: 4px;
-}
-
-.code-action-button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background-color: transparent;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  color: var(--code-action-text-light);
-  padding: 4px 8px;
-  font-size: 0.8em;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease-in-out;
-}
-
-.dark .code-action-button {
-  color: var(--code-action-text);
-}
-
-.code-action-button:hover {
-  background-color: var(--code-action-hover-bg-light);
-  color: var(--code-action-hover-text-light);
-}
-
-.dark .code-action-button:hover {
-  background-color: var(--code-action-hover-bg);
-  color: var(--code-action-hover-text);
-}
-
-.code-action-button.copied {
-  color: #3fb950;
-}
-
-.code-action-button svg {
-  width: 16px;
-  height: 16px;
-  stroke: currentColor;
-  stroke-width: 2;
-  fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.code-block-wrapper pre {
-  margin: 0;
-  padding: 0;
-  overflow-x: auto;
-}
-
-.code-block-wrapper pre code.hljs {
-  display: block;
-  padding: 16px;
-  background: transparent;
-  color: var(--code-text-light);
-  font-size: 0.9em;
-  line-height: 1.6;
-}
-
-.dark .code-block-wrapper pre code.hljs {
-  color: var(--code-text);
-}
-
 .markdown-content {
   color: var(--text-primary-light);
   width: 100%;
@@ -840,18 +594,6 @@ defineExpose({ scrollToEnd, isAtBottom });
   color: var(--text-secondary-dark);
 }
 
-.markdown-content code:not(.hljs) {
-  background-color: rgba(139, 148, 158, 0.1);
-  color: var(--text-primary-light);
-  padding: 0.2em 0.4em;
-  border-radius: 4px;
-  font-size: 0.85em;
-}
-
-.dark .markdown-content code:not(.hljs) {
-  background-color: var(--code-header-bg);
-  color: var(--code-text);
-}
 
 .markdown-content table {
   border-collapse: collapse;
@@ -904,83 +646,5 @@ defineExpose({ scrollToEnd, isAtBottom });
   width: 100%;
   box-sizing: border-box;
   align-items: center;
-}
-
-.markdown-content pre code.hljs {
-  color: var(--code-text-light);
-  background: var(--code-bg-light);
-}
-
-.markdown-content pre code.hljs .hljs-comment {
-  color: var(--code-comment-light);
-}
-
-.markdown-content pre code.hljs .hljs-keyword {
-  color: var(--code-keyword-light);
-}
-
-.markdown-content pre code.hljs .hljs-function {
-  color: var(--code-function-light);
-}
-
-.markdown-content pre code.hljs .hljs-string {
-  color: var(--code-string-light);
-}
-
-.markdown-content pre code.hljs .hljs-number {
-  color: var(--code-number-light);
-}
-
-.markdown-content pre code.hljs .hljs-variable {
-  color: var(--code-variable-light);
-}
-
-.markdown-content pre code.hljs .hljs-property {
-  color: var(--code-property-light);
-}
-
-.dark .markdown-content pre code.hljs {
-  color: var(--code-text);
-  background: var(--code-bg);
-}
-
-.dark .markdown-content pre code.hljs .hljs-comment {
-  color: var(--code-comment-dark);
-}
-
-.dark .markdown-content pre code.hljs .hljs-keyword {
-  color: var(--code-keyword-dark);
-}
-
-.dark .markdown-content pre code.hljs .hljs-function {
-  color: var(--code-function-dark);
-}
-
-.dark .markdown-content pre code.hljs .hljs-string {
-  color: var(--code-string-dark);
-}
-
-.dark .markdown-content pre code.hljs .hljs-number {
-  color: var(--code-number-dark);
-}
-
-.dark .markdown-content pre code.hljs .hljs-variable {
-  color: var(--code-variable-dark);
-}
-
-.dark .markdown-content pre code.hljs .hljs-property {
-  color: var(--code-property-dark);
-}
-
-.dark .markdown-content pre code.hljs .hljs-punctuation,
-.dark .markdown-content pre code.hljs .hljs-tag,
-.dark .markdown-content pre code.hljs .hljs-operator,
-.dark .markdown-content pre code.hljs .hljs-bracket {
-  color: #e6edf3;
-}
-
-.dark .markdown-content pre code.hljs .hljs-template-variable,
-.dark .markdown-content pre code.hljs .hljs-template-tag {
-  color: #f0f6fc;
 }
 </style>

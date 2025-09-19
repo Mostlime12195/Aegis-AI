@@ -11,6 +11,7 @@
 <script setup>
 import { ref, watch, onBeforeUnmount, nextTick } from 'vue';
 import { streamingMessageMd as md } from '../utils/markdown';
+import { copyCode, downloadCode } from '../utils/codeBlockUtils';
 import hljs from 'highlight.js';
 
 // props
@@ -37,67 +38,8 @@ let lastRenderKey = '';       // avoid redundant streaming innerHTML writes
 let hasEmittedStart = false;  // track if we've emitted the start event
 
 // Make sure global functions are available
-if (typeof window.copyCode !== 'function') {
-  window.copyCode = function (button) {
-    const codeEl = button
-      .closest(".code-block-wrapper")
-      .querySelector("pre code");
-    const text = codeEl.innerText;
-    navigator.clipboard.writeText(text).then(() => {
-      const textEl = button.querySelector("span");
-      textEl.textContent = "Copied!";
-      button.classList.add("copied");
-      setTimeout(() => {
-        textEl.textContent = "Copy";
-        button.classList.remove("copied");
-      }, 2000);
-    });
-  };
-}
-
-if (typeof window.downloadCode !== 'function') {
-  const langExtMap = {
-    python: "py",
-    javascript: "js",
-    typescript: "ts",
-    html: "html",
-    css: "css",
-    vue: "vue",
-    json: "json",
-    markdown: "md",
-    shell: "sh",
-    bash: "sh",
-    java: "java",
-    c: "c",
-    cpp: "cpp",
-    csharp: "cs",
-    go: "go",
-    rust: "rs",
-    ruby: "rb",
-    php: "php",
-    sql: "sql",
-    xml: "xml",
-    yaml: "yml",
-  };
-
-  window.downloadCode = function (button, lang) {
-    const codeEl = button
-      .closest(".code-block-wrapper")
-      .querySelector("pre code");
-    const code = codeEl.innerText;
-    const extension = langExtMap[lang.toLowerCase()] || "txt";
-    const filename = `code-${Date.now()}.${extension}`;
-    const blob = new Blob([code], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-}
+window.copyCode = copyCode;
+window.downloadCode = downloadCode;
 
 // --- Utilities ---
 

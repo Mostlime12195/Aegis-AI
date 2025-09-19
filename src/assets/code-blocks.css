@@ -1,0 +1,195 @@
+/* Code block and inline code styles */
+:root {
+  /* Default code block colors (light mode) */
+  --code-bg: #ded7d2;
+  --code-text: #281812;
+  --code-action-text: #3a322c;
+  --code-action-hover-bg: rgba(192, 74, 44, 0.1);
+  --code-action-hover-text: #3a2119;
+  --code-comment: #6b7280;
+  --code-keyword: #9d1d04;
+  --code-function: #457fea;
+  --code-string: #9d5b04;
+  --code-number: #106f5d;
+  --code-variable: #5b3a88;
+  --code-property: #046d3d;
+
+  --code-inline-bg: #dcd6d2;
+}
+
+.dark {
+  /* Code block adjustments for dark mode */
+  --code-bg: #141110;
+  --code-text: #f8efe6;
+  --code-action-text: #d1ceca;
+  --code-action-hover-bg: rgba(255, 255, 255, 0.03);
+  --code-action-hover-text: #f8f0e6;
+  --code-comment: #9d9891;
+  --code-keyword: #ff7b72;
+  --code-function: #d2a8ff;
+  --code-string: #ffdba5;
+  --code-number: #ffb579;
+  --code-variable: #57e6ff;
+  --code-property: #7ee787;
+
+  --code-inline-bg: #21201f;
+}
+
+/* Code block wrapper */
+.markdown-content .code-block-wrapper {
+  background-color: var(--code-bg);
+  border-radius: 8px;
+  margin: 1em 0;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+  transition: all 0.3s cubic-bezier(0.4, 1, 0.6, 1);
+  position: relative;
+}
+
+/* Code block header */
+.code-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 8px 8px 16px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: var(--code-bg);
+  border-radius: 8px 8px 0 0;
+  min-height: 40px;
+}
+
+/* Language label */
+.code-language {
+  font-family: monospace;
+  font-size: 0.85em;
+  color: var(--code-action-text);
+  text-transform: lowercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Action buttons container */
+.code-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Action buttons */
+.code-action-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--code-action-text);
+  padding: 4px 8px;
+  font-size: 0.8em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.code-action-button:hover {
+  background-color: var(--code-action-hover-bg);
+  color: var(--code-action-hover-text);
+}
+
+.code-action-button.copied {
+  color: #3fb950;
+}
+
+.code-action-button svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Code block pre/code elements */
+.code-block-wrapper pre {
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
+  border-radius: 0 0 8px 8px;
+}
+
+.code-block-wrapper pre code.hljs {
+  display: block;
+  padding: 16px;
+  background: transparent;
+  color: var(--code-text);
+  font-size: 0.9em;
+  line-height: 1.6;
+}
+
+/* Inline code */
+.markdown-content code:not(.hljs) {
+  background-color: var(--code-inline-bg);
+  color: var(--code-text);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+/* Syntax highlighting colors */
+.markdown-content pre code.hljs {
+  color: var(--code-text);
+  background: var(--code-bg);
+}
+
+.markdown-content pre code.hljs .hljs-comment {
+  color: var(--code-comment);
+}
+
+.markdown-content pre code.hljs .hljs-keyword,
+.markdown-content pre code.hljs .hljs-built_in,
+.markdown-content pre code.hljs .hljs-literal {
+  color: var(--code-keyword);
+}
+
+.markdown-content pre code.hljs .hljs-title {
+  color: var(--code-function);
+}
+
+.markdown-content pre code.hljs .hljs-string {
+  color: var(--code-string);
+}
+
+.markdown-content pre code.hljs .hljs-number {
+  color: var(--code-number);
+}
+
+.markdown-content pre code.hljs .hljs-variable,
+.markdown-content pre code.hljs .hljs-subst {
+  color: var(--code-variable);
+}
+
+.markdown-content pre code.hljs .hljs-property {
+  color: var(--code-property);
+}
+
+.dark .markdown-content pre code.hljs .hljs-punctuation,
+.dark .markdown-content pre code.hljs .hljs-tag,
+.dark .markdown-content pre code.hljs .hljs-operator,
+.dark .markdown-content pre code.hljs .hljs-bracket {
+  color: #e6edf3;
+}
+
+.dark .markdown-content pre code.hljs .hljs-template-variable,
+.dark .markdown-content pre code.hljs .hljs-template-tag {
+  color: #f0f6fc;
+}

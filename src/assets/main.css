@@ -1,4 +1,5 @@
 @import "./base.css";
+@import "./code-blocks.css";
 
 #app {
   padding: 0;
