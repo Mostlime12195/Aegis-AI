@@ -6,18 +6,20 @@ Aegis AI does **not** sell your user information, and all chat & user data is st
 ## Features
 
 - All data is stored locally on your device. No data is stored on the internet (outside of Hack Club's logs).
-- Full Markdown Support.
+- Full Markdown & LaTeX Support.
 - Support for multiple chats.
 - Detailed code-blocks, including syntax highlighting, downloading, and a copy button.
 - Customizable with name, occupation, and custom instructions.
 - Reasoning is visible.
 - For GPT-OSS models, advanced web search is supported with inline citations.
+- Some models support customizable reasoning effort (low, medium, and high for GPT-OSS models and a reasoning toggle for Qwen3 32b).
+- Incognito mode to prevent chat history from being saved.
+- Global memory to remember user details/preferences/opinions across chats.
 
 ## Todo
 
 - Canvas/Code Panel
 - Tree-of-Thought (Multiple instances of the same or different models working together to solve a problem at the same time)
-- Incognito mode
 - Parameter configuration (temperature, top_p, etc.)
 
 Please suggest more ideas in the Issues tab.

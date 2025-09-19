@@ -34,6 +34,10 @@ const props = defineProps({
   isDark: {
     type: Boolean,
     default: false
+  },
+  isIncognito: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -229,7 +233,15 @@ defineExpose({ scrollToEnd, isAtBottom });
 <template>
   <div class="chat-wrapper" ref="chatWrapper" @scroll="handleScroll">
     <div class="chat-container">
-      <h1 v-if="messages.length < 1" class="welcome-message">What do you need help with?</h1>
+      <div v-if="messages.length < 1 && showWelcome" class="welcome-container">
+        <h1 v-if="!isIncognito" class="welcome-message">What do you need help with?</h1>
+        <div v-else class="incognito-welcome">
+          <h1 class="incognito-title">Incognito Mode</h1>
+          <p class="incognito-description">
+            This chat won't be stored and will not use Aegis' memory or personalization features.
+          </p>
+        </div>
+      </div>
       <div class="messages-layer">
         <template v-for="message in messages" :key="message.id">
           <div class="message" :class="message.role" :data-message-id="message.id">
@@ -309,11 +321,8 @@ defineExpose({ scrollToEnd, isAtBottom });
   transition: all 0.3s cubic-bezier(.4, 1, .6, 1);
 }
 
-.welcome-message {
+.welcome-container {
   text-align: center;
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: var(--text-primary-light);
   margin: calc(1rem + 10vh) 0;
   width: 100%;
   max-width: 800px;
@@ -321,8 +330,37 @@ defineExpose({ scrollToEnd, isAtBottom });
   margin-right: auto;
 }
 
+.welcome-message {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--text-primary-light);
+  margin: 0;
+}
+
 .dark .welcome-message {
   color: var(--text-primary-dark);
+}
+
+.incognito-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--text-primary-light);
+  margin: 0 0 1rem 0;
+}
+
+.dark .incognito-title {
+  color: var(--text-primary-dark);
+}
+
+.incognito-description {
+  font-size: 1.1rem;
+  color: var(--text-secondary-light);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.dark .incognito-description {
+  color: var(--text-secondary-dark);
 }
 
 .message {

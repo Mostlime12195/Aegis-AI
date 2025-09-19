@@ -77,12 +77,14 @@ const MEMORY_AWARENESS = `### Memory Awareness
  * @param {string} [settings.occupation] - The user's occupation.
  * @param {string} [settings.custom_instructions] - Custom instructions from the user.
  * @param {string[]} [memoryFacts=[]] - Array of memory facts about the user.
+ * @param {boolean} [isIncognito=false] - Whether incognito mode is enabled.
  * @returns {string} The final, complete system prompt.
  */
 export async function generateSystemPrompt(
   toolNames = [],
   settings = {},
-  memoryFacts = []
+  memoryFacts = [],
+  isIncognito = false
 ) {
   // Start with the core identity and main principles.
   const promptSections = [CORE_IDENTITY];
@@ -131,8 +133,8 @@ ${memoryFacts.map((fact) => `- ${fact}`).join("\n")}`;
     promptSections.push(KNOWLEDGE_CUTOFF_REGULAR);
   }
 
-  // Add memory awareness if enabled
-  if (global_memory_enabled) {
+  // Add memory awareness if enabled and not in incognito mode
+  if (global_memory_enabled && !isIncognito) {
     promptSections.push(MEMORY_AWARENESS);
   }
 

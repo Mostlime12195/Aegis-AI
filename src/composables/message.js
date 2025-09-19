@@ -24,7 +24,7 @@ function findModelById(models, id) {
   return null;
 }
 
-/**\n * Main entry point for processing all incoming user messages for the API interface.\n * It determines the correct API configuration and streams the LLM response.\n *\n * @param {string} query - The user's message\n * @param {Array} plainMessages - Conversation history (e.g., [{ role: \"user\", content: \"...\"}, { role: \"assistant\", content: \"...\"}])\n * @param {AbortController} controller - AbortController instance for cancelling API requests\n * @param {string} selectedModel - The model chosen by the user\n * @param {object} modelParameters - Object containing all configurable model parameters (temperature, top_p, max_tokens, seed, reasoning)\n * @param {object} settings - User settings object containing user_name, user_occupation, and custom_instructions\n * @param {string[]} toolNames - Array of available tool names\n * @param {boolean} isSearchEnabled - Whether the browser search tool is enabled\n * @yields {Object} A chunk object with content and/or reasoning\n *   @property {string|null} content - The main content of the response chunk\n *   @property {string|null} reasoning - Any reasoning information included in the response chunk\n */
+/**\n * Main entry point for processing all incoming user messages for the API interface.\n * It determines the correct API configuration and streams the LLM response.\n *\n * @param {string} query - The user's message\n * @param {Array} plainMessages - Conversation history (e.g., [{ role: "user", content: "..."}, { role: "assistant", content: "..."}])\n * @param {AbortController} controller - AbortController instance for cancelling API requests\n * @param {string} selectedModel - The model chosen by the user\n * @param {object} modelParameters - Object containing all configurable model parameters (temperature, top_p, max_tokens, seed, reasoning)\n * @param {object} settings - User settings object containing user_name, user_occupation, and custom_instructions\n * @param {string[]} toolNames - Array of available tool names\n * @param {boolean} isSearchEnabled - Whether the browser search tool is enabled\n * @param {boolean} isIncognito - Whether incognito mode is enabled\n * @yields {Object} A chunk object with content and/or reasoning\n *   @property {string|null} content - The main content of the response chunk\n *   @property {string|null} reasoning - Any reasoning information included in the response chunk\n */
 export async function* handleIncomingMessage(
   query,
   plainMessages,
@@ -33,7 +33,8 @@ export async function* handleIncomingMessage(
   modelParameters = {},
   settings = {},
   toolNames = [],
-  isSearchEnabled = false
+  isSearchEnabled = false,
+  isIncognito = false
 ) {
   try {
     // Validate required parameters
@@ -41,23 +42,25 @@ export async function* handleIncomingMessage(
       throw new Error("Missing required parameters for handleIncomingMessage");
     }
 
-    // Load memory facts if memory is enabled
+    // Load memory facts if memory is enabled and not in incognito mode
     let memoryFacts = [];
-    if (settings.global_memory_enabled) {
+    if (settings.global_memory_enabled && !isIncognito) {
       memoryFacts = await loadMemory();
     }
 
     // Determine which tools are actually being used
     const usedTools = [];
-    if (isSearchEnabled && toolNames.includes("browser_search")) {
+    if (isSearchEnabled && toolNames.includes("browser_search") && !isIncognito) {
       usedTools.push("browser_search");
     }
 
     // Generate system prompt based on settings and used tools
+    // In incognito mode, use empty settings to avoid customization
     const systemPrompt = await generateSystemPrompt(
       usedTools,
-      settings,
-      memoryFacts
+      isIncognito ? {} : settings,
+      memoryFacts,
+      isIncognito // Pass incognito mode state
     );
 
     // Initialize requestBody with required fields
@@ -82,8 +85,8 @@ export async function* handleIncomingMessage(
       });
     }
 
-    // Conditionally add browser_search tool if enabled
-    if (isSearchEnabled && toolNames.includes("browser_search")) {
+    // Conditionally add browser_search tool if enabled and not in incognito mode
+    if (isSearchEnabled && toolNames.includes("browser_search") && !isIncognito) {
       requestBody.tools = [{ type: "browser_search" }];
     }
 

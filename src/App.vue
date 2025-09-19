@@ -35,6 +35,7 @@ const controller = ref(new AbortController()); // Used to abort fetch requests
 const chatPanel = ref(null); // Reference to the ChatPanel component, used to be able to manually scroll down
 const currConvo = ref('');
 const conversationTitle = ref('');
+const isIncognito = ref(false); // Incognito mode state
 
 const sidebarOpen = ref(window.innerWidth > 900);
 const chatLoading = ref(false);
@@ -138,7 +139,7 @@ async function sendMessage(message) {
 
   // Update global memory with the user's message and conversation context
   // Run in background without blocking the UI
-  if (settingsManager.settings.global_memory_enabled) {
+  if (settingsManager.settings.global_memory_enabled && !isIncognito.value) {
     // Non-blocking memory update - don't await this
     updateMemory(userPrompt, messages)
       .catch(error => {
@@ -173,7 +174,7 @@ async function sendMessage(message) {
     // console.log("Could not serialize full messages array after push:", messages.value);
   }
 
-  if (!currConvo.value) {
+  if (!currConvo.value && !isIncognito.value) {
     currConvo.value = await createConversation(messages.value, new Date());
     if (currConvo.value) {
       const convData = await localforage.getItem(`conversation_${currConvo.value}`);
@@ -239,7 +240,8 @@ async function sendMessage(message) {
       model_parameters, // Pass the entire model_parameters object
       settingsManager.settings, // Pass user settings
       selectedModelDetails.extra_functions || [], // Pass available tool names
-      settingsManager.settings.search_enabled || false // Pass search toggle state
+      settingsManager.settings.search_enabled || false, // Pass search toggle state
+      isIncognito.value // Pass incognito mode state
     );
 
     for await (const chunk of streamGenerator) {
@@ -340,7 +342,9 @@ async function sendMessage(message) {
     console.log("Final message update, executed_tools:", assistantMsg.executed_tools);
     // Use Vue's array mutation method to ensure reactivity
     messages.value.splice(messages.value.length - 1, 1, { ...assistantMsg });
-    await storeMessages(currConvo.value, messages.value, new Date());
+    if (!isIncognito.value) {
+      await storeMessages(currConvo.value, messages.value, new Date());
+    }
   }
 }
 
@@ -356,6 +360,11 @@ function toggleSidebar() {
  * @param {string} id - The ID of the conversation to load.
  */
 async function changeConversation(id) {
+  if (isIncognito.value) {
+    // In incognito mode, we don't load conversations from storage
+    return;
+  }
+  
   chatLoading.value = true;
   messages.value = [];
   currConvo.value = id;
@@ -401,6 +410,11 @@ async function changeConversation(id) {
  * @param {string} id - The ID of the conversation to delete.
  */
 async function deleteConversation(id) {
+  if (isIncognito.value) {
+    // In incognito mode, we don't delete conversations from storage
+    return;
+  }
+  
   await deleteConv(id)
   if (currConvo.value === id) {
     currConvo.value = '';
@@ -416,6 +430,7 @@ async function newConversation() {
   currConvo.value = '';
   messages.value = [];
   conversationTitle.value = '';
+  isIncognito.value = false; // Reset incognito mode when starting a new conversation
 }
 
 /**
@@ -465,12 +480,22 @@ function openSettingsPanel(tabKey = 'general') {
       - MessageForm: Fixed position at bottom, centered with dynamic width
     -->
     <div class="main-container" :class="{ 'sidebar-open': sidebarOpen }">
-      <TopBar :is-scrolled-top="isScrolledTop" :selected-model-name="selectedModelName"
-        :selected-model-id="selectedModelId" :toggle-sidebar="toggleSidebar" :sidebar-open="sidebarOpen"
-        @model-selected="handleModelSelect" />
+      <TopBar 
+        :is-scrolled-top="isScrolledTop" 
+        :selected-model-name="selectedModelName"
+        :selected-model-id="selectedModelId" 
+        :toggle-sidebar="toggleSidebar" 
+        :sidebar-open="sidebarOpen"
+        :is-incognito="isIncognito"
+        :show-incognito-button="!currConvo && messages.length === 0"
+        :messages="messages"
+        @model-selected="handleModelSelect"
+        @toggle-incognito="isIncognito = !isIncognito"
+      />
 
       <ChatPanel ref="chatPanel" :curr-convo="currConvo" :curr-messages="messages" :isLoading="isLoading"
         :conversationTitle="conversationTitle" :show-welcome="!currConvo && !isTyping" :is-dark="isDark"
+        :is-incognito="isIncognito"
         @set-message="text => $refs.messageForm.setMessage(text)" @scroll="handleChatScroll" />
       <MessageForm ref="messageForm" :is-loading="isLoading"
         :selected-model-id="selectedModelId" :available-models="models"
