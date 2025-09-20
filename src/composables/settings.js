@@ -1,8 +1,9 @@
 import localforage from "localforage";
 import { reactive } from "vue";
+import DEFAULT_PARAMETERS from './defaultParameters';
 
 /**
- * Manages application settings for the Aegis AI Interface.
+ * Manages application settings for the Libre AI Studio Interface.
  */
 class Settings {
   constructor() {
@@ -14,7 +15,7 @@ class Settings {
       // --- User Profile Settings ---
       user_name: null, // User's name
       occupation: null, // User's occupation
-      custom_instructions: null, // Custom instructions for Aegis
+      custom_instructions: null, // Custom instructions for Libre
       
       // --- Memory Settings ---
       global_memory_enabled: false, // Whether global memory is enabled
@@ -27,6 +28,9 @@ class Settings {
       
       // --- Model-Specific Settings ---
       model_settings: {}, // Per-model settings storage
+      
+      // --- Parameter Config Settings ---
+      parameter_config: { ...DEFAULT_PARAMETERS },
     });
 
     // Add type information for better type safety
@@ -39,6 +43,7 @@ class Settings {
       selected_model_id: "moonshotai/kimi-k2-instruct-0905", // Default model ID
       search_enabled: false, // Default value for search setting
       model_settings: {}, // Default value for model settings
+      parameter_config: { ...DEFAULT_PARAMETERS },
     };
 
     // Load settings asynchronously

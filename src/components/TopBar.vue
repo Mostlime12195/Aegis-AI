@@ -1,5 +1,5 @@
 <template>
-  <div class="top-bar" :class="{ 'with-border': !isScrolledTopValue }">
+  <div class="top-bar" :class="{ 'with-border': !isScrolledTopValue }" ref="topBarRef">
     <div class="top-bar-content">
       <button v-if="!sidebarOpen" class="sidebar-toggle" @click="toggleSidebar" aria-label="Toggle sidebar">
         <Icon icon="material-symbols:side-navigation" width="24" height="24" />
@@ -66,13 +66,17 @@
           :aria-label="isIncognito ? 'Disable incognito mode' : 'Enable incognito mode'">
           <Icon icon="mdi:incognito" width="20" height="20" />
         </button>
+        <button v-if="!parameterConfigOpen" class="action-toggle parameter-config-toggle"
+          @click="$emit('toggle-parameter-config')" aria-label="Model parameters">
+          <Icon icon="material-symbols:tune" width="20" height="20" />
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import {
   DropdownMenuRoot,
   DropdownMenuTrigger,
@@ -119,10 +123,17 @@ const props = defineProps({
   messages: {
     type: Array,
     default: () => []
+  },
+  parameterConfigOpen: {
+    type: Boolean,
+    default: false
   }
 });
 
-const emit = defineEmits(['model-selected']);
+const emit = defineEmits(['model-selected', 'toggle-incognito', 'toggle-parameter-config']);
+
+// Ref for the top bar element
+const topBarRef = ref(null);
 
 // Handle both direct boolean values and refs
 const isScrolledTopValue = computed(() => {
@@ -140,6 +151,36 @@ function selectModel(modelId) {
     emit('model-selected', modelId, selectedModel.name);
   }
 }
+
+// Function to ensure top bar visibility
+function ensureTopBarVisibility() {
+  if (topBarRef.value) {
+    // Force the element to be visible
+    topBarRef.value.style.display = 'block';
+
+    // Ensure it's at the top
+    topBarRef.value.style.position = 'relative';
+    topBarRef.value.style.zIndex = '1002';
+  }
+}
+
+onMounted(() => {
+  console.log('TopBar mounted');
+
+  // Ensure the top bar is visible and properly positioned
+  // Use nextTick and requestAnimationFrame to ensure DOM is fully updated
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      ensureTopBarVisibility();
+    });
+  });
+});
+
+// Watch for any changes that might affect the top bar
+watch(() => [props.sidebarOpen, props.isIncognito], () => {
+  // Ensure visibility after any prop changes
+  ensureTopBarVisibility();
+});
 </script>
 
 <style scoped>
@@ -158,6 +199,22 @@ function selectModel(modelId) {
 
 .category-item :deep(svg) {
   color: var(--text-primary);
+}
+
+.top-bar {
+  position: sticky;
+  top: 0;
+  height: 60px;
+  background-color: var(--bg);
+  width: 100%;
+  z-index: 1002;
+  flex-shrink: 0;
+  border-bottom: 1px solid transparent;
+  transition: border-bottom 0.2s ease;
+}
+
+.top-bar.with-border {
+  border-bottom: 1px solid var(--border);
 }
 
 .top-bar-content {
@@ -214,8 +271,8 @@ function selectModel(modelId) {
 }
 
 /* Add active state styling for when toggles are enabled */
-.action-toggle:active,
-.action-toggle.active {
+.action-toggle:active:not(.parameter-config-toggle),
+.action-toggle.active:not(.parameter-config-toggle) {
   background-color: var(--primary);
   /* Use primary color when enabled */
   color: var(--primary-foreground);

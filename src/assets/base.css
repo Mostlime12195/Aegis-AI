@@ -62,6 +62,12 @@
   --btn-hover: hsla(16, 13%, 72%, 0.5);
   --btn-hover-2: hsla(17, 100%, 96%, 0.6);
 
+  /* Parameter config panel */
+  --panel-bg: var(--bg-primary);
+  --panel-input-bg: var(--bg-input);
+  --tooltip-bg: var(--elevated-surface);
+  --tooltip-text: var(--text-primary);
+
   /* Citation styling */
   --citation-bg: var(--surface);
   --citation-bg-hover: var(--btn-hover);
@@ -183,6 +189,12 @@
 
   --btn-hover: hsla(15, 6%, 27%, 0.4);
   --btn-hover-2: hsla(15, 6%, 27%, 0.4);
+
+  /* Parameter config panel */
+  --panel-bg: var(--bg-primary);
+  --panel-input-bg: var(--bg-input);
+  --tooltip-bg: var(--elevated-surface);
+  --tooltip-text: var(--text-primary);
 
   /* Citation styling for dark mode */
   --citation-bg: var(--bg-tertiary);

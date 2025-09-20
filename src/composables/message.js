@@ -1,6 +1,6 @@
 /**
  * @file message.js
- * @description Core logic for the Aegis AI API Interface, handling Hack Club LLM endpoint configuration
+ * @description Core logic for the Libre AI Studio API Interface, handling Hack Club LLM endpoint configuration
  * and streaming responses using manual fetch() processing.
  */
 
@@ -24,12 +24,28 @@ function findModelById(models, id) {
   return null;
 }
 
-/**\n * Main entry point for processing all incoming user messages for the API interface.\n * It determines the correct API configuration and streams the LLM response.\n *\n * @param {string} query - The user's message\n * @param {Array} plainMessages - Conversation history (e.g., [{ role: "user", content: "..."}, { role: "assistant", content: "..."}])\n * @param {AbortController} controller - AbortController instance for cancelling API requests\n * @param {string} selectedModel - The model chosen by the user\n * @param {object} modelParameters - Object containing all configurable model parameters (temperature, top_p, max_tokens, seed, reasoning)\n * @param {object} settings - User settings object containing user_name, user_occupation, and custom_instructions\n * @param {string[]} toolNames - Array of available tool names\n * @param {boolean} isSearchEnabled - Whether the browser search tool is enabled\n * @param {boolean} isIncognito - Whether incognito mode is enabled\n * @yields {Object} A chunk object with content and/or reasoning\n *   @property {string|null} content - The main content of the response chunk\n *   @property {string|null} reasoning - Any reasoning information included in the response chunk\n */
+/**
+ * Main entry point for processing all incoming user messages for the API interface.
+ * It determines the correct API configuration and streams the LLM response.
+ *
+ * @param {string} query - The user's message
+ * @param {Array} plainMessages - Conversation history (e.g., [{ role: "user", content: "..."}, { role: "assistant", content: "..."}])
+ * @param {AbortController} controller - AbortController instance for cancelling API requests
+ * @param {string} selectedModel - The model chosen by the user
+ * @param {object} modelParameters - Object containing all configurable model parameters (temperature, top_p, seed, reasoning)
+ * @param {object} settings - User settings object containing user_name, user_occupation, and custom_instructions
+ * @param {string[]} toolNames - Array of available tool names
+ * @param {boolean} isSearchEnabled - Whether the browser search tool is enabled
+ * @param {boolean} isIncognito - Whether incognito mode is enabled
+ * @yields {Object} A chunk object with content and/or reasoning
+ * @property {string|null} content - The main content of the response chunk
+ * @property {string|null} reasoning - Any reasoning information included in the response chunk
+ **/
 export async function* handleIncomingMessage(
   query,
   plainMessages,
   controller,
-  selectedModel = "qwen/qwen3-32b",
+  selectedModel = "moonshotai/kimi-k2-instruct-0905",
   modelParameters = {},
   settings = {},
   toolNames = [],
@@ -50,7 +66,11 @@ export async function* handleIncomingMessage(
 
     // Determine which tools are actually being used
     const usedTools = [];
-    if (isSearchEnabled && toolNames.includes("browser_search") && !isIncognito) {
+    if (
+      isSearchEnabled &&
+      toolNames.includes("browser_search") &&
+      !isIncognito
+    ) {
       usedTools.push("browser_search");
     }
 
@@ -77,16 +97,20 @@ export async function* handleIncomingMessage(
     // Add model parameters, but filter out invalid ones
     if (modelParameters) {
       // Add valid parameters that the API expects
-      const validParams = ["temperature", "top_p", "max_tokens", "seed"];
+      const validParams = ["temperature", "top_p", "seed"];
       validParams.forEach((param) => {
-        if (modelParameters[param] !== undefined) {
+        if (modelParameters[param] !== undefined && modelParameters[param] !== null) {
           requestBody[param] = modelParameters[param];
         }
       });
     }
 
     // Conditionally add browser_search tool if enabled and not in incognito mode
-    if (isSearchEnabled && toolNames.includes("browser_search") && !isIncognito) {
+    if (
+      isSearchEnabled &&
+      toolNames.includes("browser_search") &&
+      !isIncognito
+    ) {
       requestBody.tools = [{ type: "browser_search" }];
     }
 
@@ -214,8 +238,15 @@ export async function* handleIncomingMessage(
                 }
 
                 // Handle case where we have executed_tools but no content or reasoning
-                if (choice.delta?.executed_tools && !choice.delta?.content && !choice.delta?.reasoning) {
-                  console.log("Yielding executed_tools only chunk:", executedTools);
+                if (
+                  choice.delta?.executed_tools &&
+                  !choice.delta?.content &&
+                  !choice.delta?.reasoning
+                ) {
+                  console.log(
+                    "Yielding executed_tools only chunk:",
+                    executedTools
+                  );
                   yield {
                     content: null,
                     reasoning: null,
@@ -259,7 +290,7 @@ export async function* handleIncomingMessage(
 
     const errorMessage = error.message || "No detailed information";
     yield {
-      content: `\n\n[CRITICAL ERROR: Aegis AI failed to dispatch request. ${errorMessage}]`,
+      content: `\n\n[CRITICAL ERROR: Libre AI Studio failed to dispatch request. ${errorMessage}]`,
       reasoning: null,
       error: true,
       errorDetails: {

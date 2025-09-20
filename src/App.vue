@@ -10,16 +10,17 @@ import { DialogRoot, DialogContent, DialogPortal, DialogOverlay } from 'reka-ui'
 
 import { createConversation, storeMessages, deleteConversation as deleteConv } from './composables/storeConversations'
 import { updateMemory } from './composables/memory';
-import { handleIncomingMessage } from './composables/message'
+import { handleIncomingMessage } from '@/composables/message';
 import { availableModels } from './composables/availableModels';
 import Settings from './composables/settings';
+import DEFAULT_PARAMETERS from './composables/defaultParameters';
 
 import MessageForm from './components/MessageForm.vue';
 import ChatPanel from './components/ChatPanel.vue';
 import AppSidebar from './components/AppSidebar.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
+import ParameterConfigPanel from './components/ParameterConfigPanel.vue'
 import TopBar from './components/TopBar.vue';
-import { Icon } from "@iconify/vue";
 
 
 // Inject Vercel's analytics and performance insights
@@ -33,11 +34,13 @@ const messages = ref([]);
 const isLoading = ref(false);
 const controller = ref(new AbortController()); // Used to abort fetch requests
 const chatPanel = ref(null); // Reference to the ChatPanel component, used to be able to manually scroll down
+const messageForm = ref(null); // Reference to the MessageForm component
 const currConvo = ref('');
 const conversationTitle = ref('');
 const isIncognito = ref(false); // Incognito mode state
 
 const sidebarOpen = ref(window.innerWidth > 900);
+const parameterConfigPanelOpen = ref(false);
 const chatLoading = ref(false);
 const isTyping = ref(false);
 const isSettingsOpen = ref(false);
@@ -50,6 +53,14 @@ const models = ref(availableModels);
 // Initialize the Settings composable reactively
 const settingsManager = reactive(new Settings());
 
+// Watch for sidebar changes to update MessageForm position
+watch([sidebarOpen, parameterConfigPanelOpen], () => {
+  updateMessageFormPosition();
+});
+
+// Add resize observer for main container
+let mainContainerResizeObserver = null;
+
 onMounted(async () => {
   await settingsManager.loadSettings();
   // Make sure selected_model_id is set to a default if not already set
@@ -60,7 +71,54 @@ onMounted(async () => {
   if (!settingsManager.settings.selected_model_id) {
     settingsManager.settings.selected_model_id = "moonshotai/kimi-k2-instruct-0905"; // Default model ID
   }
+  
+  // Set up resize observer for main container
+  const mainContainer = document.querySelector('.main-container');
+  if (mainContainer) {
+    mainContainerResizeObserver = new ResizeObserver(() => {
+      updateMessageFormPosition();
+    });
+    mainContainerResizeObserver.observe(mainContainer);
+  }
+  
+  // Initial update
+  updateMessageFormPosition();
 });
+
+onBeforeUnmount(() => {
+  if (mainContainerResizeObserver) {
+    mainContainerResizeObserver.disconnect();
+  }
+});
+
+// Function to update MessageForm position and width based on chat container
+function updateMessageFormPosition() {
+  if (!messageForm.value || !chatPanel.value || !chatPanel.value.chatWrapper) return;
+  
+  const chatWrapper = chatPanel.value.chatWrapper;
+  const formElement = messageForm.value.$el ? messageForm.value.$el.value || messageForm.value.$el : messageForm.value;
+  
+  if (!chatWrapper || !formElement) return;
+  
+  // Get chat container dimensions
+  const chatRect = chatWrapper.getBoundingClientRect();
+  const chatContainer = chatWrapper.querySelector('.chat-container');
+  
+  if (!chatContainer) {
+    // Fallback to chatWrapper if chat-container not found
+    formElement.style.width = `${chatRect.width}px`;
+    formElement.style.left = `${chatRect.left}px`;
+    return;
+  }
+  
+  // Get the chat-container dimensions (this is what we want to match)
+  const containerRect = chatContainer.getBoundingClientRect();
+  
+  // Apply dimensions to MessageForm to match chat-container content area
+  formElement.style.width = `${containerRect.width}px`;
+  formElement.style.left = `${containerRect.left}px`;
+  formElement.style.right = `${window.innerWidth - containerRect.right}px`;
+}
 
 /**
  * Computed property to get the name of the currently selected model from settings.
@@ -148,22 +206,22 @@ async function sendMessage(message) {
       });
   }
 
-      const assistantMsg = {
-      id: generateId(),
-      role: "assistant",
-      reasoning: "",
-      content: "",
-      executed_tools: [], // Add executed_tools array (using underscore naming convention)
-      timestamp: new Date(),
-      complete: false,
-      reasoningStartTime: null,
-      reasoningEndTime: null,
-      reasoningDuration: null,
-      error: false, // Add error flag
-      errorDetails: null // Add error details storage
-    };
+  const assistantMsg = {
+    id: generateId(),
+    role: "assistant",
+    reasoning: "",
+    content: "",
+    executed_tools: [], // Add executed_tools array (using underscore naming convention)
+    timestamp: new Date(),
+    complete: false,
+    reasoningStartTime: null,
+    reasoningEndTime: null,
+    reasoningDuration: null,
+    error: false, // Add error flag
+    errorDetails: null // Add error details storage
+  };
 
-    console.log("Created new assistant message:", assistantMsg);
+  console.log("Created new assistant message:", assistantMsg);
 
   messages.value.push(assistantMsg);
   console.log("Pushed assistant message to messages array:", assistantMsg);
@@ -217,12 +275,16 @@ async function sendMessage(message) {
 
   // Update the selected model name in settings for the UI
   const selected_model_id = selectedModelDetails.id;
-  
+
   // Construct modelParameters object with reasoning settings from settings manager
-  const savedReasoningEffort = settingsManager.getModelSetting(selected_model_id, "reasoning_effort") || 
-                               (selectedModelDetails.extra_parameters?.reasoning_effort?.[1] || "default");
-  
+  const savedReasoningEffort = settingsManager.getModelSetting(selected_model_id, "reasoning_effort") ||
+    (selectedModelDetails.extra_parameters?.reasoning_effort?.[1] || "default");
+
+  // Get parameter config from settings
+  const parameterConfig = settingsManager.settings.parameter_config || { ...DEFAULT_PARAMETERS };
+
   const model_parameters = {
+    ...parameterConfig, // Include parameter config from settings
     ...selectedModelDetails.extra_parameters, // Include default model parameters
     reasoning: {
       // Reasoning is always enabled when the model supports it
@@ -364,7 +426,7 @@ async function changeConversation(id) {
     // In incognito mode, we don't load conversations from storage
     return;
   }
-  
+
   chatLoading.value = true;
   messages.value = [];
   currConvo.value = id;
@@ -414,7 +476,7 @@ async function deleteConversation(id) {
     // In incognito mode, we don't delete conversations from storage
     return;
   }
-  
+
   await deleteConv(id)
   if (currConvo.value === id) {
     currConvo.value = '';
@@ -451,12 +513,23 @@ function handleModelSelect(modelId, modelName) {
   settingsManager.saveSettings();
 }
 
-/**\\n * Opens the settings panel to a specific tab.\
- *  * @param {string} tabKey - The key of the tab to open (e.g., 'general', 'api').\
- *  */
+/**
+ * Opens the settings panel to a specific tab.
+ * @param {string} tabKey - The key of the tab to open (e.g., 'general', 'api').
+ */
 function openSettingsPanel(tabKey = 'general') {
   settingsInitialTab.value = tabKey;
   isSettingsOpen.value = true;
+}
+
+/**
+ * Handles parameter config save event.
+ * @param {object} params - The parameter configuration object
+ */
+function handleParameterConfigSave(params) {
+  console.log("Parameter config saved:", params);
+  // The settings are already saved in the ParameterConfigPanel component
+  // This function can be used for any additional actions needed after saving
 }
 
 
@@ -472,6 +545,11 @@ function openSettingsPanel(tabKey = 'general') {
         @reload-settings="settingsManager.loadSettings" @open-settings="openSettingsPanel('general')" />
       <!-- Opens to General tab -->
     </Suspense>
+    <ParameterConfigPanel 
+      :is-open="parameterConfigPanelOpen" 
+      :settings-manager="settingsManager"
+      @close="parameterConfigPanelOpen = false"
+      @save="handleParameterConfigSave" />
     <!--
       Restructured layout:
       - app-container: Main flex container with sidebar
@@ -479,29 +557,25 @@ function openSettingsPanel(tabKey = 'general') {
       - ChatPanel: Takes full width with internal max-width constraint
       - MessageForm: Fixed position at bottom, centered with dynamic width
     -->
-    <div class="main-container" :class="{ 'sidebar-open': sidebarOpen }">
-      <TopBar 
-        :is-scrolled-top="isScrolledTop" 
-        :selected-model-name="selectedModelName"
-        :selected-model-id="selectedModelId" 
-        :toggle-sidebar="toggleSidebar" 
-        :sidebar-open="sidebarOpen"
-        :is-incognito="isIncognito"
-        :show-incognito-button="!currConvo && messages.length === 0"
-        :messages="messages"
-        @model-selected="handleModelSelect"
-        @toggle-incognito="isIncognito = !isIncognito"
-      />
+    <div class="main-container" :class="{ 'sidebar-open': sidebarOpen, 'parameter-config-open': parameterConfigPanelOpen }">
+      <TopBar :is-scrolled-top="isScrolledTop" :selected-model-name="selectedModelName"
+        :selected-model-id="selectedModelId" :toggle-sidebar="toggleSidebar" :sidebar-open="sidebarOpen"
+        :is-incognito="isIncognito" :show-incognito-button="!currConvo && messages.length === 0" :messages="messages"
+        :parameter-config-open="parameterConfigPanelOpen"
+        @model-selected="handleModelSelect" @toggle-incognito="isIncognito = !isIncognito" 
+        @toggle-parameter-config="parameterConfigPanelOpen = !parameterConfigPanelOpen" />
 
-      <ChatPanel ref="chatPanel" :curr-convo="currConvo" :curr-messages="messages" :isLoading="isLoading"
-        :conversationTitle="conversationTitle" :show-welcome="!currConvo && !isTyping" :is-dark="isDark"
-        :is-incognito="isIncognito"
-        @set-message="text => $refs.messageForm.setMessage(text)" @scroll="handleChatScroll" />
-      <MessageForm ref="messageForm" :is-loading="isLoading"
-        :selected-model-id="selectedModelId" :available-models="models"
-        :selected-model-name="selectedModelName" :settings-manager="settingsManager"
-        @typing="isTyping = true" @empty="isTyping = false"
-        @send-message="sendMessage" @abort-controller="controller.abort()"/>
+      <div class="content-wrapper">
+        <ChatPanel ref="chatPanel" :curr-convo="currConvo" :curr-messages="messages" :isLoading="isLoading"
+          :conversationTitle="conversationTitle" :show-welcome="!currConvo && !isTyping" :is-dark="isDark"
+          :is-incognito="isIncognito" @set-message="text => $refs.messageForm.setMessage(text)"
+          @scroll="handleChatScroll" />
+      </div>
+      <MessageForm ref="messageForm" :is-loading="isLoading" :selected-model-id="selectedModelId"
+        :available-models="models" :selected-model-name="selectedModelName" :settings-manager="settingsManager"
+        @typing="isTyping = true" @empty="isTyping = false" @send-message="sendMessage"
+        @abort-controller="controller.abort()" 
+        class="message-form-dynamic" />
     </div>
     <DialogRoot v-model:open="isSettingsOpen">
       <DialogPortal>
@@ -590,7 +664,15 @@ button:hover {
   background: inherit;
   width: 100%;
   overflow: hidden;
-  transition: margin-left 0.3s cubic-bezier(.4, 1, .6, 1);
+  transition: all 0.3s cubic-bezier(.4, 1, .6, 1);
+}
+
+/* Content wrapper to handle scrolling */
+.content-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+  width: 100%;
 }
 
 /* Sidebar open shifts main content right by sidebar width (280px) */
@@ -598,22 +680,18 @@ button:hover {
   .main-container.sidebar-open {
     margin-left: 280px;
   }
+  
+  .main-container.parameter-config-open {
+    margin-right: 300px;
+  }
+  
+  .main-container.sidebar-open.parameter-config-open {
+    margin-left: 280px;
+    margin-right: 300px;
+  }
 }
 
 /* Top bar styling */
-.top-bar {
-  height: 60px;
-  background-color: var(--bg);
-  width: 100%;
-  z-index: 1000;
-  flex-shrink: 0;
-  border-bottom: 1px solid transparent;
-  transition: border-bottom 0.2s ease;
-}
-
-.top-bar.with-border {
-  border-bottom: 1px solid var(--border);
-}
 
 /* Update fade transition timing */
 .fade-enter-active,
@@ -626,11 +704,17 @@ button:hover {
   opacity: 0;
 }
 
-/* Dark mode settings */
-
-.dark #app {
-  background: var(--bg);
-  color: var(--text-primary);
+.message-form-dynamic {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: transparent; /* Remove background to avoid covering content */
+  z-index: 1000;
+  padding: 12px;
+  box-sizing: border-box;
+  transition: none; /* Remove transitions for better performance */
+  max-width: none; /* Remove max-width to allow exact matching */
 }
 
 /* Other display size styles */

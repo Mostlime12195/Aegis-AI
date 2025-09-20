@@ -39,6 +39,7 @@ const reasoningEffort = ref("default");
 // --- Reactive State ---
 const inputMessage = ref("");
 const textareaRef = ref(null); // Ref for the textarea element
+const messageFormRoot = ref(null); // Ref for the root element
 
 // Computed property to check if the input is empty (after trimming whitespace)
 const trimmedMessage = computed(() => inputMessage.value.trim());
@@ -262,11 +263,11 @@ function setReasoningEffort(value) {
 }
 
 // Expose the setMessage function to be called from the parent component
-defineExpose({ setMessage, toggleSearch, toggleReasoning, setReasoningEffort });
+defineExpose({ setMessage, toggleSearch, toggleReasoning, setReasoningEffort, $el: messageFormRoot });
 </script>
 
 <template>
-  <div class="input-section">
+  <div ref="messageFormRoot" class="input-section">
     <div class="input-area-wrapper">
       <textarea ref="textareaRef" v-model="inputMessage" :disabled="isLoading" @keydown.enter="handleEnterKey"
         placeholder="Type your message..." class="chat-textarea" rows="1"></textarea>
@@ -327,12 +328,11 @@ defineExpose({ setMessage, toggleSearch, toggleReasoning, setReasoningEffort });
   left: 0;
   right: 0;
   width: 100%;
-  max-width: 800px;
   margin: 0 auto;
   padding: 8px 12px 0;
   box-sizing: border-box;
   z-index: 1000;
-  transition: all 0.3s cubic-bezier(.4, 1, .6, 1);
+  background: transparent; /* Remove background to avoid covering content */
 }
 
 .input-area-wrapper {
@@ -461,7 +461,6 @@ defineExpose({ setMessage, toggleSearch, toggleReasoning, setReasoningEffort });
     left: 280px;
     right: 0;
     width: calc(100% - 280px);
-    transition: all 0.3s cubic-bezier(.4, 1, .6, 1);
   }
 }
 

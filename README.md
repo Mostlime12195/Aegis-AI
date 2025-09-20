@@ -1,7 +1,7 @@
-# Aegis AI
+# Libre AI Studio
 
-Aegis AI is a **free, unlimited** AI ChatBot that uses various models through [Hack Club's free API](https://ai.hackclub.com).
-Aegis AI does **not** sell your user information, and all chat & user data is stored locally, on your device. However, Hack Club does log all API usage.
+Libre AI Studio is a **free, unlimited** AI ChatBot that uses various models through [Hack Club's free API](https://ai.hackclub.com).
+Libre AI Studio does **not** sell your user information, and all chat & user data is stored locally, on your device. However, Hack Club does log all API usage.
 
 ## Features
 
@@ -15,12 +15,12 @@ Aegis AI does **not** sell your user information, and all chat & user data is st
 - Some models support customizable reasoning effort (low, medium, and high for GPT-OSS models and a reasoning toggle for Qwen3 32b).
 - Incognito mode to prevent chat history from being saved.
 - Global memory to remember user details/preferences/opinions across chats.
+- Parameter configuration panel with temperature, top_p, and seed options.
 
 ## Todo
 
 - Canvas/Code Panel
 - Tree-of-Thought (Multiple instances of the same or different models working together to solve a problem at the same time)
-- Parameter configuration (temperature, top_p, etc.)
 
 Please suggest more ideas in the Issues tab.
 

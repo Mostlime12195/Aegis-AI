@@ -244,7 +244,7 @@ function copyMessage(content, event) {
   });
 }
 
-defineExpose({ scrollToEnd, isAtBottom });
+defineExpose({ scrollToEnd, isAtBottom, chatWrapper });
 </script>
 
 <template>
@@ -255,7 +255,7 @@ defineExpose({ scrollToEnd, isAtBottom });
         <div v-else class="incognito-welcome">
           <h1 class="incognito-title">Incognito Mode</h1>
           <p class="incognito-description">
-            This chat won't be stored and will not use Aegis' memory or personalization features.
+            This chat won't be stored and will not use Libre's memory or personalization features.
           </p>
         </div>
       </div>
@@ -271,7 +271,7 @@ defineExpose({ scrollToEnd, isAtBottom });
                   <span class="reasoning-text">
                     <span v-if="liveReasoningTimers[message.id]">{{
                       liveReasoningTimers[message.id]
-                    }}</span>
+                      }}</span>
                     <span v-else-if="message.reasoningDuration > 0">Thought for
                       {{ formatDuration(message.reasoningDuration) }}</span>
                     <span v-else-if="
@@ -325,13 +325,12 @@ defineExpose({ scrollToEnd, isAtBottom });
   --reasoning-border-light: var(--border);
   --reasoning-border-dark: var(--border);
   flex: 1;
-  overflow-y: auto;
+  overflow-y: scroll;
   position: relative;
   padding-bottom: 120px;
   width: 100%;
   height: 100%;
   box-sizing: border-box;
-  scrollbar-gutter: stable both-edges;
 }
 
 .chat-container {

@@ -193,7 +193,7 @@ async function handleClearAllMemory() {
 
               <div class="setting-item textarea-item">
                 <div class="setting-info">
-                  <h3>What should Aegis call you?</h3>
+                  <h3>What should Libre call you?</h3>
                   <p>Enter your name</p>
                 </div>
                 <div class="input-container">
@@ -214,7 +214,7 @@ async function handleClearAllMemory() {
 
               <div class="setting-item textarea-item">
                 <div class="setting-info">
-                  <h3>What custom instructions do you want Aegis to follow?</h3>
+                  <h3>What custom instructions do you want Libre to follow?</h3>
                   <p>Be precise, be witty, etc.</p>
                 </div>
                 <div class="input-container">
@@ -276,11 +276,11 @@ async function handleClearAllMemory() {
             <div class="settings-content">
               <div class="content-header">
                 <h2>About</h2>
-                <p>Information about Aegis AI Interface</p>
+                <p>Information about Libre AI Studio Interface</p>
               </div>
               <div class="info-section">
                 <p>
-                  Aegis AI is a modern, Vue.js-powered interface designed for seamless AI interactions. 
+                  Libre AI Studio is a modern, Vue.js-powered interface designed for seamless AI interactions. 
                   Built with developers in mind, it offers a customizable experience that adapts to your needs.
                 </p>
                 <p>
@@ -295,7 +295,7 @@ async function handleClearAllMemory() {
                 </ul>
                 <p>
                   For more information, visit our 
-                  <a href="https://github.com/Mostlime12195/Aegis-AI" target="_blank" rel="noopener noreferrer">GitHub repository</a>.
+                  <a href="https://github.com/Mostlime12195/Aegis-AI" target="_blank" rel="noopener noreferrer">Libre AI Studio GitHub repository</a>.
                 </p>
               </div>
             </div>

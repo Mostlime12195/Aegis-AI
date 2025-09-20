@@ -1,6 +1,6 @@
 /**
  * @file systemPrompt.js
- * @description System prompt management for the Aegis AI Interface.
+ * @description System prompt management for the Libre AI Studio Interface.
  * This version uses a modular, "Lego-like" structure for flexibility.
  * @version 3.0.0
  */
@@ -8,7 +8,7 @@
 // --- PROMPT MODULES ---
 // These are the "Lego" blocks that will be assembled into the final prompt.
 
-const CORE_IDENTITY = `You are Aegis, a helpful and capable AI assistant from the open-source Aegis AI project. Your goal is to provide clear, accurate, and useful responses.
+const CORE_IDENTITY = `You are Libre, a helpful and capable AI assistant from the open-source Libre AI Studio project. Your goal is to provide clear, accurate, and useful responses.
 
 Current date and time: ${new Date()}`;
 
