@@ -2,15 +2,6 @@
   "rewrites": [{ "source": "/api/:path*", "destination": "/api/:path*" }],
   "headers": [
     {
-      "source": "/(.*)\\.(js|css|png|svg|jpg|jpeg|gif|webp|woff|woff2|ttf|ico)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
       "source": "/(.*)",
       "headers": [
         {
