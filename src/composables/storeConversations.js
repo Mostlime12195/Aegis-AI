@@ -21,6 +21,12 @@ export async function createConversation(plainMessages, lastUpdated) {
       reasoningEndTime: msg.reasoningEndTime,
       reasoningDuration: msg.reasoningDuration,
       executed_tools: msg.executed_tools ? JSON.parse(JSON.stringify(msg.executed_tools)) : [], // Ensure executed_tools are serializable
+      // New timing properties
+      apiCallTime: msg.apiCallTime,
+      firstTokenTime: msg.firstTokenTime,
+      completionTime: msg.completionTime,
+      // Token counting
+      tokenCount: msg.tokenCount,
     }),
     // Add any other properties your message objects might have
   }));
@@ -100,6 +106,12 @@ export async function storeMessages(
       reasoningEndTime: msg.reasoningEndTime,
       reasoningDuration: msg.reasoningDuration,
       executed_tools: msg.executed_tools ? JSON.parse(JSON.stringify(msg.executed_tools)) : [], // Ensure executed_tools are serializable
+      // New timing properties
+      apiCallTime: msg.apiCallTime,
+      firstTokenTime: msg.firstTokenTime,
+      completionTime: msg.completionTime,
+      // Token counting
+      tokenCount: msg.tokenCount,
     }),
     // Add any other properties your message objects might have
   }));

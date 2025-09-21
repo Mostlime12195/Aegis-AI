@@ -43,6 +43,56 @@ const props = defineProps({
 
 const emit = defineEmits(["send-message", "set-message", "scroll"]);
 
+// Helper function to calculate message stats
+function calculateMessageStats(message) {
+  const stats = {};
+  
+  // Calculate delay (time from API call to first token)
+  if (message.apiCallTime && message.firstTokenTime) {
+    stats.delay = message.firstTokenTime.getTime() - message.apiCallTime.getTime();
+  }
+  
+  // Token count
+  if (message.tokenCount !== undefined) {
+    stats.tokenCount = message.tokenCount;
+  }
+  
+  // Calculate tokens per second
+  if (message.tokenCount > 0 && message.firstTokenTime && message.completionTime) {
+    const generationTimeMs = message.completionTime.getTime() - message.firstTokenTime.getTime();
+    if (generationTimeMs > 0) {
+      stats.tokensPerSecond = (message.tokenCount / generationTimeMs) * 1000;
+    }
+  }
+  
+  // Calculate total generation time (from first token to completion)
+  if (message.firstTokenTime && message.completionTime) {
+    stats.generationTime = message.completionTime.getTime() - message.firstTokenTime.getTime();
+  }
+  
+  return stats;
+}
+
+// Format stats for display
+function formatStatValue(value, type) {
+  if (value === undefined || value === null) return null;
+  
+  switch (type) {
+    case 'delay':
+      // Format time in ms or seconds with 'wait' suffix
+      return value < 1000 ? `${Math.round(value)}ms wait` : `${(value / 1000).toFixed(2)}s wait`;
+    case 'generationTime':
+      // Format time in ms or seconds with 'gen' suffix
+      return value < 1000 ? `${Math.round(value)}ms gen` : `${(value / 1000).toFixed(2)}s gen`;
+    case 'tokenCount':
+      return `${Math.round(value)} tok`;
+    case 'tokensPerSecond':
+      return `${Math.round(value)} tok/s`;
+    default:
+      return value;
+  }
+}
+
 const liveReasoningTimers = reactive({});
 const timerIntervals = {};
 const messageLoadingStates = reactive({});
@@ -59,6 +109,44 @@ const messages = computed(() => {
   if (!props.currMessages) return [];
   return props.currMessages;
 });
+
+// Function to get formatted message stats
+function getMessageStats(message) {
+  if (message.role !== 'assistant') return [];
+  
+  const stats = calculateMessageStats(message);
+  const formattedStats = [];
+  
+  // Add delay if available
+  if (stats.delay !== undefined) {
+    formattedStats.push({
+      value: formatStatValue(stats.delay, 'delay')
+    });
+  }
+  
+  // Add token count if available
+  if (stats.tokenCount !== undefined) {
+    formattedStats.push({
+      value: formatStatValue(stats.tokenCount, 'tokenCount')
+    });
+  }
+  
+  // Add tokens per second if available
+  if (stats.tokensPerSecond !== undefined) {
+    formattedStats.push({
+      value: formatStatValue(stats.tokensPerSecond, 'tokensPerSecond')
+    });
+  }
+  
+  // Add generation time if available
+  if (stats.generationTime !== undefined) {
+    formattedStats.push({
+      value: formatStatValue(stats.generationTime, 'generationTime')
+    });
+  }
+  
+  return formattedStats;
+}
 
 const scrollToEnd = (behavior = "smooth") => {
   if (!chatWrapper.value) return;
@@ -300,11 +388,17 @@ defineExpose({ scrollToEnd, isAtBottom, chatWrapper });
                     @start="onStreamingMessageStart(message.id)" />
                 </div>
               </div>
-              <div class="copy-button-container" :class="{ 'user-copy-container': message.role === 'user' }">
+              <div class="message-content-footer" :class="{ 'user-footer': message.role === 'user' }">
                 <button class="copy-button" @click="copyMessage(message.content, $event)" :title="'Copy message'"
                   aria-label="Copy message">
                   <Icon icon="material-symbols:content-copy-outline-rounded" width="32px" height="32px" />
                 </button>
+                <div v-if="message.role === 'assistant'" class="message-stats-row">
+                  <span v-for="(stat, index) in getMessageStats(message)" :key="index" class="stat-item">
+                    <span v-if="stat.value" class="stat-value">{{ stat.value }}</span>
+                    <span v-if="stat.value && index < getMessageStats(message).length - 1" class="stat-separator"> • </span>
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -737,6 +831,57 @@ defineExpose({ scrollToEnd, isAtBottom, chatWrapper });
   display: block;
   text-align: center;
   margin: 1em 0;
+}
+
+.message-content-footer {
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.message:hover .message-content-footer {
+  opacity: 0.7;
+}
+
+.message-content-footer:hover {
+  opacity: 1 !important;
+}
+
+.user-footer {
+  justify-content: flex-end;
+}
+
+.message-stats-row {
+  display: flex;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-secondary-light);
+  margin-left: 8px;
+  user-select: none;
+}
+
+.dark .message-stats-row {
+  color: var(--text-secondary-dark);
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+}
+
+.stat-value {
+  white-space: nowrap;
+}
+
+.stat-separator {
+  margin: 0 4px;
+  color: var(--text-secondary-light);
+}
+
+.dark .stat-separator {
+  color: var(--text-secondary-dark);
 }
 
 .loading-animation {

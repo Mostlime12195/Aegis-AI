@@ -53,7 +53,7 @@ function closeSidebar() {
 
 <template>
   <div>
-    <div v-if="props.isOpen && windowWidth < 900" class="sidebar-overlay" @click="closeSidebar"></div>
+    <div :class="['sidebar-overlay', { active: props.isOpen }]" @click="closeSidebar"></div>
     <div :class="['sidebar', { active: props.isOpen }]">
       <div class="sidebar-header">
         <button class="close-button" aria-label="Close sidebar" @click="closeSidebar">
@@ -99,6 +99,8 @@ function closeSidebar() {
   border-right: 1px solid var(--border);
   transform: translateX(-100%);
   transition: transform 0.3s cubic-bezier(.4, 1, .6, 1);
+  display: flex;
+  flex-direction: column;
 }
 
 .sidebar.active {
@@ -113,6 +115,7 @@ function closeSidebar() {
   color: var(--text-primary);
   padding: 0 8px;
   position: relative;
+  flex-shrink: 0;
 }
 
 .sidebar-title {
@@ -141,6 +144,7 @@ function closeSidebar() {
     background 0.18s,
     box-shadow 0.18s,
     transform 0.15s;
+  flex-shrink: 0;
 }
 
 #new-chat-button:hover {
@@ -159,7 +163,6 @@ function closeSidebar() {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  max-height: 400px;
   gap: 4px;
 }
 
@@ -187,6 +190,7 @@ function closeSidebar() {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .conversation-button:hover {
@@ -209,6 +213,7 @@ function closeSidebar() {
   border: none;
   padding: 4px;
   opacity: 0.6;
+  flex-shrink: 0;
 }
 
 .delete-button.no-hover:hover {
@@ -225,13 +230,18 @@ function closeSidebar() {
   width: 100%;
   height: 100%;
   background: rgba(0, 0, 0, 0.4);
-  opacity: 1;
-  z-index: 1001;
+  opacity: 0;
+  z-index: 1000;
   transition: opacity 0.3s cubic-bezier(.4, 1, .6, 1);
   will-change: opacity;
-  pointer-events: auto;
+  pointer-events: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+.sidebar-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .settings-button {
@@ -239,6 +249,7 @@ function closeSidebar() {
   height: 44px;
   width: 44px;
   transition: background 0.18s;
+  flex-shrink: 0;
 }
 
 .settings-button:hover {
@@ -258,20 +269,26 @@ function closeSidebar() {
   padding: 0;
   margin: 0;
   transition: background 0.18s;
+  flex-shrink: 0;
 }
 
 .close-button:hover {
   background: var(--btn-hover);
 }
 
-@media (min-width: 900px) {
+@media (min-width: 950px) {
   .sidebar {
     position: fixed;
   }
+  
+  .sidebar-overlay {
+    display: none;
+  }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 950px) {
   .sidebar {
+    position: fixed;
     width: 80vw;
     max-width: 340px;
     box-shadow: 4px 0 24px #0002;
@@ -285,6 +302,10 @@ function closeSidebar() {
 @media (max-width: 600px) {
   .sidebar-title {
     padding-left: 48px;
+  }
+  
+  .conversation-button {
+    font-size: 0.9em;
   }
 }
 </style>

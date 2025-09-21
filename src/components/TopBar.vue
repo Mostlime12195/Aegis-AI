@@ -160,7 +160,7 @@ function ensureTopBarVisibility() {
 
     // Ensure it's at the top
     topBarRef.value.style.position = 'relative';
-    topBarRef.value.style.zIndex = '1002';
+    topBarRef.value.style.zIndex = '100';
   }
 }
 
@@ -207,7 +207,7 @@ watch(() => [props.sidebarOpen, props.isIncognito], () => {
   height: 60px;
   background-color: var(--bg);
   width: 100%;
-  z-index: 1002;
+  z-index: 100;
   flex-shrink: 0;
   border-bottom: 1px solid transparent;
   transition: border-bottom 0.2s ease;

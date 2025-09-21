@@ -8,12 +8,9 @@ import { useDark } from "@vueuse/core";
 import localforage from 'localforage';
 import { DialogRoot, DialogContent, DialogPortal, DialogOverlay } from 'reka-ui';
 
-import { createConversation, storeMessages, deleteConversation as deleteConv } from './composables/storeConversations'
-import { updateMemory } from './composables/memory';
-import { handleIncomingMessage } from '@/composables/message';
 import { availableModels } from './composables/availableModels';
 import Settings from './composables/settings';
-import DEFAULT_PARAMETERS from './composables/defaultParameters';
+import { useMessagesManager } from './composables/messagesManager';
 
 import MessageForm from './components/MessageForm.vue';
 import ChatPanel from './components/ChatPanel.vue';
@@ -30,28 +27,42 @@ injectSpeedInsights();
 
 const isDark = useDark();
 
-const messages = ref([]);
-const isLoading = ref(false);
-const controller = ref(new AbortController()); // Used to abort fetch requests
-const chatPanel = ref(null); // Reference to the ChatPanel component, used to be able to manually scroll down
+// Initialize the Settings composable reactively
+const settingsManager = reactive(new Settings());
+
+// Reference to the ChatPanel component, used to be able to manually scroll down
+const chatPanel = ref(null);
+
+// Initialize the MessagesManager
+const messagesManager = useMessagesManager(settingsManager, chatPanel);
+
+// Destructure commonly used properties from messagesManager
+const {
+  messages,
+  isLoading,
+  controller,
+  currConvo,
+  conversationTitle,
+  isIncognito,
+  isTyping,
+  chatLoading,
+  sendMessage,
+  changeConversation,
+  deleteConversation,
+  newConversation,
+  toggleIncognito
+} = messagesManager;
+
 const messageForm = ref(null); // Reference to the MessageForm component
-const currConvo = ref('');
-const conversationTitle = ref('');
-const isIncognito = ref(false); // Incognito mode state
 
 const sidebarOpen = ref(window.innerWidth > 900);
 const parameterConfigPanelOpen = ref(false);
-const chatLoading = ref(false);
-const isTyping = ref(false);
 const isSettingsOpen = ref(false);
 const settingsInitialTab = ref('general'); // Controls which tab opens in settings panel
-const isScrolledTop = ref(true); // Track if chat is scrolled to top
+const isScrolledTop = ref(true); // Track if chat is scrolled to the top
 
 // Make availableModels reactive
 const models = ref(availableModels);
-
-// Initialize the Settings composable reactively
-const settingsManager = reactive(new Settings());
 
 // Watch for sidebar changes to update MessageForm position
 watch([sidebarOpen, parameterConfigPanelOpen], () => {
@@ -67,11 +78,7 @@ onMounted(async () => {
   if (!settingsManager.settings.selected_model_id) {
     settingsManager.settings.selected_model_id = "qwen/qwen3-32b"; // Default model ID
   }
-  // Update the selected model ID if not already set
-  if (!settingsManager.settings.selected_model_id) {
-    settingsManager.settings.selected_model_id = "moonshotai/kimi-k2-instruct-0905"; // Default model ID
-  }
-  
+
   // Set up resize observer for main container
   const mainContainer = document.querySelector('.main-container');
   if (mainContainer) {
@@ -80,7 +87,7 @@ onMounted(async () => {
     });
     mainContainerResizeObserver.observe(mainContainer);
   }
-  
+
   // Initial update
   updateMessageFormPosition();
 });
@@ -94,26 +101,26 @@ onBeforeUnmount(() => {
 // Function to update MessageForm position and width based on chat container
 function updateMessageFormPosition() {
   if (!messageForm.value || !chatPanel.value || !chatPanel.value.chatWrapper) return;
-  
+
   const chatWrapper = chatPanel.value.chatWrapper;
   const formElement = messageForm.value.$el ? messageForm.value.$el.value || messageForm.value.$el : messageForm.value;
-  
+
   if (!chatWrapper || !formElement) return;
-  
+
   // Get chat container dimensions
   const chatRect = chatWrapper.getBoundingClientRect();
   const chatContainer = chatWrapper.querySelector('.chat-container');
-  
+
   if (!chatContainer) {
     // Fallback to chatWrapper if chat-container not found
     formElement.style.width = `${chatRect.width}px`;
     formElement.style.left = `${chatRect.left}px`;
     return;
   }
-  
+
   // Get the chat-container dimensions (this is what we want to match)
   const containerRect = chatContainer.getBoundingClientRect();
-  
+
   // Apply dimensions to MessageForm to match chat-container content area
   formElement.style.width = `${containerRect.width}px`;
   formElement.style.left = `${containerRect.left}px`;
@@ -154,345 +161,21 @@ const selectedModelId = computed(() => {
   return settingsManager.settings.selected_model_id || "";
 });
 
-function generateId() {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
-}
-
-/**
- * Handles sending a message to the AI.
- * Retrieves current API configuration from settingsManager.
- * @param {string} message - The user's message.
- */
-async function sendMessage(message) {
-  if (!message.trim() || isLoading.value) return;
-
-  controller.value = new AbortController();
-  isLoading.value = true;
-  isTyping.value = false;
-
-  const userPrompt = message;
-
-  // Exclude the last (empty) assistant message if it exists
-  const plainMessages = messages.value
-    .filter(msg => msg.complete)
-    .map(msg => ({
-      role: msg.role,
-      content: msg.content
-    }));
-
-  messages.value.push({
-    id: generateId(),
-    role: "user",
-    content: userPrompt,
-    timestamp: new Date(),
-    complete: true,
-  });
-  console.log("Pushed user message to messages array");
-  // Safely log full messages array
-  try {
-    console.log("Full messages array after user message push:", JSON.parse(JSON.stringify(messages.value)));
-  } catch (e) {
-    console.log("Could not serialize full messages array after user message push:", messages.value);
-  }
-
-  // Update global memory with the user's message and conversation context
-  // Run in background without blocking the UI
-  if (settingsManager.settings.global_memory_enabled && !isIncognito.value) {
-    // Non-blocking memory update - don't await this
-    updateMemory(userPrompt, messages)
-      .catch(error => {
-        console.error("Error updating memory:", error);
-        // Silently handle memory update errors to avoid disrupting chat flow
-      });
-  }
-
-  const assistantMsg = {
-    id: generateId(),
-    role: "assistant",
-    reasoning: "",
-    content: "",
-    executed_tools: [], // Add executed_tools array (using underscore naming convention)
-    timestamp: new Date(),
-    complete: false,
-    reasoningStartTime: null,
-    reasoningEndTime: null,
-    reasoningDuration: null,
-    error: false, // Add error flag
-    errorDetails: null // Add error details storage
-  };
-
-  console.log("Created new assistant message:", assistantMsg);
-
-  messages.value.push(assistantMsg);
-  console.log("Pushed assistant message to messages array:", assistantMsg);
-  // Safely log full messages array
-  try {
-    // console.log("Full messages array after push:", JSON.parse(JSON.stringify(messages.value)));
-  } catch (e) {
-    // console.log("Could not serialize full messages array after push:", messages.value);
-  }
-
-  if (!currConvo.value && !isIncognito.value) {
-    currConvo.value = await createConversation(messages.value, new Date());
-    if (currConvo.value) {
-      const convData = await localforage.getItem(`conversation_${currConvo.value}`);
-      conversationTitle.value = convData?.title || "";
-    }
-  }
-
-  await nextTick();
-  // Use requestAnimationFrame for more reliable scrolling
-  requestAnimationFrame(() => {
-    chatPanel.value?.scrollToEnd("smooth");
-  });
-
-  // Get current model details from the settingsManager (reactive instance)
-  // Helper function to find a model by ID, including nested models in categories
-  function findModelById(models, id) {
-    for (const model of models) {
-      if (model.id === id) {
-        return model;
-      }
-      if (model.models && Array.isArray(model.models)) {
-        const found = findModelById(model.models, id);
-        if (found) {
-          return found;
-        }
-      }
-    }
-    return null;
-  }
-
-  const selectedModelDetails = findModelById(availableModels, settingsManager.settings.selected_model_id);
-
-  if (!selectedModelDetails) {
-    console.error("No model selected or model details not found. Aborting message send.");
-    assistantMsg.content = (assistantMsg.content ? assistantMsg.content + "\n\n" : "") + "Error: No AI model selected.";
-    assistantMsg.complete = true;
-    isLoading.value = false;
-    return;
-  }
-
-  // Update the selected model name in settings for the UI
-  const selected_model_id = selectedModelDetails.id;
-
-  // Construct modelParameters object with reasoning settings from settings manager
-  const savedReasoningEffort = settingsManager.getModelSetting(selected_model_id, "reasoning_effort") ||
-    (selectedModelDetails.extra_parameters?.reasoning_effort?.[1] || "default");
-
-  // Get parameter config from settings
-  const parameterConfig = settingsManager.settings.parameter_config || { ...DEFAULT_PARAMETERS };
-
-  const model_parameters = {
-    ...parameterConfig, // Include parameter config from settings
-    ...selectedModelDetails.extra_parameters, // Include default model parameters
-    reasoning: {
-      // Reasoning is always enabled when the model supports it
-      enabled: true,
-      effort: savedReasoningEffort
-    }
-  };
-
-  try {
-    const streamGenerator = handleIncomingMessage(
-      userPrompt,
-      plainMessages,
-      controller.value, // Pass the controller's instance
-      selected_model_id,
-      model_parameters, // Pass the entire model_parameters object
-      settingsManager.settings, // Pass user settings
-      selectedModelDetails.extra_functions || [], // Pass available tool names
-      settingsManager.settings.search_enabled || false, // Pass search toggle state
-      isIncognito.value // Pass incognito mode state
-    );
-
-    for await (const chunk of streamGenerator) {
-
-      // Process content - handle empty strings but not null/undefined
-      if (chunk.content !== null && chunk.content !== undefined) {
-        assistantMsg.content += chunk.content;
-
-        // Set reasoning end time when we first get content after reasoning started
-        if (
-          chunk.content &&
-          assistantMsg.reasoningStartTime !== null &&
-          assistantMsg.reasoningEndTime === null
-        ) {
-          assistantMsg.reasoningEndTime = new Date();
-        }
-      }
-
-      // Process reasoning - handle empty strings but not null/undefined
-      if (chunk.reasoning !== null && chunk.reasoning !== undefined) {
-        assistantMsg.reasoning += chunk.reasoning;
-
-        // Set reasoning start time if not set
-        if (assistantMsg.reasoningStartTime === null) {
-          assistantMsg.reasoningStartTime = new Date();
-        }
-      }
-
-      // Process executed tools
-      if (chunk.executed_tools && chunk.executed_tools.length > 0) {
-        console.log("Processing executed tools in chunk:", chunk.executed_tools);
-        console.log("Chunk type:", { hasContent: !!chunk.content, hasReasoning: !!chunk.reasoning });
-        // Add new tools to the executed_tools array, avoiding duplicates
-        chunk.executed_tools.forEach(tool => {
-          console.log("Processing tool:", tool);
-          // Check if tool with same index already exists
-          const existingToolIndex = assistantMsg.executed_tools.findIndex(t => t.index === tool.index);
-          if (existingToolIndex >= 0) {
-            // Update existing tool
-            console.log("Updating existing tool at index:", existingToolIndex);
-            assistantMsg.executed_tools[existingToolIndex] = tool;
-          } else {
-            // Add new tool
-            console.log("Adding new tool");
-            assistantMsg.executed_tools.push(tool);
-          }
-        });
-        console.log("Updated executed_tools array:", assistantMsg.executed_tools);
-      }
-
-      // Update the messages array with a new object to trigger reactivity
-      console.log("Updating messages array, current executed_tools:", assistantMsg.executed_tools);
-      // Create a new object with a copy of the assistantMsg to ensure reactivity
-      const updatedMsg = {
-        ...assistantMsg,
-        executed_tools: [...assistantMsg.executed_tools] // Create a new array to ensure reactivity
-      };
-      // Use Vue's array mutation method to ensure reactivity
-      messages.value.splice(messages.value.length - 1, 1, updatedMsg);
-      // Safely log full messages array
-      try {
-        console.log("Full messages array after update:", JSON.parse(JSON.stringify(messages.value))); // Log full messages array
-      } catch (e) {
-        console.log("Could not serialize full messages array after update:", messages.value);
-      }
-
-      // Allow Vue to render updates before scrolling
-      await new Promise(resolve => setTimeout(resolve, 0));
-
-      if (chatPanel.value?.isAtBottom) {
-        chatPanel.value.scrollToEnd("smooth");
-      }
-    }
-
-  } catch (error) {
-    console.error('Error in stream processing:', error);
-    // Delete this entire catch block
-  } finally {
-    assistantMsg.complete = true;
-    isLoading.value = false;
-
-    // Calculate reasoning duration in the finally block
-    if (assistantMsg.reasoningStartTime !== null) {
-      const endTime = assistantMsg.reasoningEndTime !== null ? assistantMsg.reasoningEndTime : new Date();
-      assistantMsg.reasoningDuration = endTime.getTime() - assistantMsg.reasoningStartTime.getTime();
-    }
-
-    // Enhanced error handling in finally block
-    if (assistantMsg.complete && !assistantMsg.content && assistantMsg.errorDetails) {
-      assistantMsg.content = `
-[ERROR: ${assistantMsg.errorDetails.message}]`;
-      if (assistantMsg.errorDetails.status) {
-        assistantMsg.content += ` HTTP ${assistantMsg.errorDetails.status}`;
-      }
-    }
-
-    // Make sure we have a copy of the final message
-    console.log("Final message update, executed_tools:", assistantMsg.executed_tools);
-    // Use Vue's array mutation method to ensure reactivity
-    messages.value.splice(messages.value.length - 1, 1, { ...assistantMsg });
-    if (!isIncognito.value) {
-      await storeMessages(currConvo.value, messages.value, new Date());
-    }
-  }
-}
-
 /**
  * Toggles the sidebar open/closed.
  */
 function toggleSidebar() {
   sidebarOpen.value = !sidebarOpen.value;
-}
-
-/**
- * Changes the current conversation to the given ID.
- * @param {string} id - The ID of the conversation to load.
- */
-async function changeConversation(id) {
-  if (isIncognito.value) {
-    // In incognito mode, we don't load conversations from storage
-    return;
-  }
-
-  chatLoading.value = true;
-  messages.value = [];
-  currConvo.value = id;
-
-  const conv = await localforage.getItem(`conversation_${currConvo.value}`);
-  console.log("Loaded conversation data:", conv);
-  // --- START CHANGES HERE: Convert date strings back to Date objects ---
-  if (conv?.messages) {
-    messages.value = conv.messages.map(msg => {
-      console.log("Processing stored message:", msg);
-      if (msg.role === 'assistant') {
-        const processedMsg = {
-          ...msg,
-          // Convert ISO strings back to Date objects if they exist
-          reasoningStartTime: msg.reasoningStartTime ? new Date(msg.reasoningStartTime) : null,
-          reasoningEndTime: msg.reasoningEndTime ? new Date(msg.reasoningEndTime) : null,
-          // Ensure executed_tools property exists
-          executed_tools: msg.executed_tools || []
-        };
-        console.log("Processed assistant message executed_tools:", processedMsg.executed_tools);
-        return processedMsg;
+  // On mobile, when closing the sidebar, we might want to ensure focus returns to the main content
+  if (!sidebarOpen.value && window.innerWidth < 900) {
+    // Focus on main content area for accessibility
+    nextTick(() => {
+      const mainContent = document.querySelector('.content-wrapper');
+      if (mainContent) {
+        mainContent.focus();
       }
-      return msg;
     });
-  } else {
-    messages.value = [];
   }
-  // --- END CHANGES HERE ---
-
-  conversationTitle.value = conv?.title || '';
-  chatLoading.value = false;
-
-  // Ensure scroll to bottom happens after DOM update
-  await nextTick();
-  // Use a more reliable approach to ensure scroll happens
-  requestAnimationFrame(() => {
-    chatPanel.value?.scrollToEnd("instant");
-  });
-}
-
-/**
- * Deletes a conversation by its ID.
- * @param {string} id - The ID of the conversation to delete.
- */
-async function deleteConversation(id) {
-  if (isIncognito.value) {
-    // In incognito mode, we don't delete conversations from storage
-    return;
-  }
-
-  await deleteConv(id)
-  if (currConvo.value === id) {
-    currConvo.value = '';
-    messages.value = [];
-    conversationTitle.value = '';
-  }
-}
-
-/**
- * Starts a new blank conversation.
- */
-async function newConversation() {
-  currConvo.value = '';
-  messages.value = [];
-  conversationTitle.value = '';
-  isIncognito.value = false; // Reset incognito mode when starting a new conversation
 }
 
 /**
@@ -545,11 +228,8 @@ function handleParameterConfigSave(params) {
         @reload-settings="settingsManager.loadSettings" @open-settings="openSettingsPanel('general')" />
       <!-- Opens to General tab -->
     </Suspense>
-    <ParameterConfigPanel 
-      :is-open="parameterConfigPanelOpen" 
-      :settings-manager="settingsManager"
-      @close="parameterConfigPanelOpen = false"
-      @save="handleParameterConfigSave" />
+    <ParameterConfigPanel :is-open="parameterConfigPanelOpen" :settings-manager="settingsManager"
+      @close="parameterConfigPanelOpen = false" @save="handleParameterConfigSave" />
     <!--
       Restructured layout:
       - app-container: Main flex container with sidebar
@@ -557,12 +237,13 @@ function handleParameterConfigSave(params) {
       - ChatPanel: Takes full width with internal max-width constraint
       - MessageForm: Fixed position at bottom, centered with dynamic width
     -->
-    <div class="main-container" :class="{ 'sidebar-open': sidebarOpen, 'parameter-config-open': parameterConfigPanelOpen }">
+    <div class="main-container"
+      :class="{ 'sidebar-open': sidebarOpen, 'parameter-config-open': parameterConfigPanelOpen }">
       <TopBar :is-scrolled-top="isScrolledTop" :selected-model-name="selectedModelName"
         :selected-model-id="selectedModelId" :toggle-sidebar="toggleSidebar" :sidebar-open="sidebarOpen"
         :is-incognito="isIncognito" :show-incognito-button="!currConvo && messages.length === 0" :messages="messages"
-        :parameter-config-open="parameterConfigPanelOpen"
-        @model-selected="handleModelSelect" @toggle-incognito="isIncognito = !isIncognito" 
+        :parameter-config-open="parameterConfigPanelOpen" @model-selected="handleModelSelect"
+        @toggle-incognito="toggleIncognito"
         @toggle-parameter-config="parameterConfigPanelOpen = !parameterConfigPanelOpen" />
 
       <div class="content-wrapper">
@@ -574,8 +255,7 @@ function handleParameterConfigSave(params) {
       <MessageForm ref="messageForm" :is-loading="isLoading" :selected-model-id="selectedModelId"
         :available-models="models" :selected-model-name="selectedModelName" :settings-manager="settingsManager"
         @typing="isTyping = true" @empty="isTyping = false" @send-message="sendMessage"
-        @abort-controller="controller.abort()" 
-        class="message-form-dynamic" />
+        @abort-controller="controller.abort()" />
     </div>
     <DialogRoot v-model:open="isSettingsOpen">
       <DialogPortal>
@@ -665,6 +345,7 @@ button:hover {
   width: 100%;
   overflow: hidden;
   transition: all 0.3s cubic-bezier(.4, 1, .6, 1);
+  z-index: 10;
 }
 
 /* Content wrapper to handle scrolling */
@@ -680,11 +361,11 @@ button:hover {
   .main-container.sidebar-open {
     margin-left: 280px;
   }
-  
+
   .main-container.parameter-config-open {
     margin-right: 300px;
   }
-  
+
   .main-container.sidebar-open.parameter-config-open {
     margin-left: 280px;
     margin-right: 300px;
@@ -704,19 +385,6 @@ button:hover {
   opacity: 0;
 }
 
-.message-form-dynamic {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  background: transparent; /* Remove background to avoid covering content */
-  z-index: 1000;
-  padding: 12px;
-  box-sizing: border-box;
-  transition: none; /* Remove transitions for better performance */
-  max-width: none; /* Remove max-width to allow exact matching */
-}
-
 /* Other display size styles */
 
 @media (max-width: 1024px) {
@@ -726,7 +394,6 @@ button:hover {
 }
 
 @media (max-width: 768px) {
-
   #disclaimer {
     margin-top: -16px;
     font-size: smaller;
@@ -739,6 +406,37 @@ button:hover {
 
   header {
     padding-top: 0px;
+  }
+
+  /* Ensure proper sidebar behavior on mobile - use overlay instead of transform */
+  .main-container {
+    transition: none;
+    /* Remove transitions that interfere with positioning */
+    transform: none;
+  }
+
+  .main-container.sidebar-open,
+  .main-container.parameter-config-open,
+  .main-container.sidebar-open.parameter-config-open {
+    transform: none;
+    margin: 0;
+  }
+}
+
+/* Mobile-specific styles - use overlay instead of transform for better positioning */
+@media (max-width: 900px) {
+  .main-container {
+    transform: none;
+    /* Remove transforms that interfere with fixed positioning */
+    margin: 0;
+    /* Reset any margin changes */
+  }
+
+  /* Use overlay positioning for mobile panels */
+  .sidebar-open .main-container,
+  .parameter-config-open .main-container {
+    transform: none;
+    margin: 0;
   }
 }
 

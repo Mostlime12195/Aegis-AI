@@ -328,6 +328,7 @@ defineExpose({ setMessage, toggleSearch, toggleReasoning, setReasoningEffort, $e
   left: 0;
   right: 0;
   width: 100%;
+  max-width: 800px;
   margin: 0 auto;
   padding: 8px 12px 0;
   box-sizing: border-box;
@@ -514,6 +515,18 @@ defineExpose({ setMessage, toggleSearch, toggleReasoning, setReasoningEffort, $e
   100% {
     opacity: 1;
     transform: scale(1) translateY(0);
+  }
+}
+
+/* Mobile-specific styles */
+@media (max-width: 768px) {
+  .input-section {
+    max-width: 100%;
+    padding: 8px 10px 0;
+  }
+  
+  .chat-textarea {
+    font-size: 16px; /* Prevent zoom on iOS */
   }
 }
 </style>

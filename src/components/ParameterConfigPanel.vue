@@ -6,10 +6,11 @@
       <div class="tooltip-arrow"></div>
     </div>
 
+    <div :class="['parameter-config-overlay', { active: isOpen && isMobile }]" @click="closePanel"></div>
     <div class="parameter-config-panel" :class="{ active: isOpen }">
       <!-- Header -->
       <div class="panel-header">
-        <h1 class="panel-title">Parameters</h1>
+        <span class="panel-title">Parameters</span>
         <div class="header-actions">
           <button class="action-btn" @click="resetToDefaults" aria-label="Reset to defaults">
             <Icon icon="material-symbols:refresh" width="20" height="20" />
@@ -48,7 +49,7 @@
 </template>
 
 <script setup>
-import { computed, watch, ref } from "vue";
+import { computed, watch, ref, onMounted, onUnmounted } from "vue";
 import { Icon } from "@iconify/vue";
 import { SliderRoot, SliderTrack, SliderRange, SliderThumb } from "reka-ui";
 import DEFAULT_PARAMETERS from '@/composables/defaultParameters';
@@ -65,6 +66,28 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["close", "save"]);
+
+// Mobile detection
+const isMobile = ref(false);
+
+const checkMobile = () => {
+  isMobile.value = window.innerWidth <= 950;
+};
+
+// Watch for window resize to update mobile status
+let resizeObserver;
+
+onMounted(() => {
+  checkMobile();
+  resizeObserver = new ResizeObserver(checkMobile);
+  resizeObserver.observe(document.body);
+});
+
+onUnmounted(() => {
+  if (resizeObserver) {
+    resizeObserver.disconnect();
+  }
+});
 
 // Tooltip state
 const tooltipVisible = ref(false);
@@ -243,12 +266,33 @@ const parameters = [
   position: relative;
 }
 
+.parameter-config-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  z-index: 1000;
+  transition: opacity 0.3s cubic-bezier(.4, 1, .6, 1);
+  will-change: opacity;
+  pointer-events: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.parameter-config-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .parameter-config-panel {
   position: fixed;
   right: 0;
   top: 0;
   height: 100dvh;
   width: 300px;
+  max-width: 90vw;
   z-index: 1001;
   background: var(--panel-bg);
   color: var(--text-primary);
@@ -272,16 +316,16 @@ const parameters = [
   justify-content: space-between;
   height: 60px;
   padding: 0 16px;
-  border-bottom: 1px solid var(--border);
   background: var(--panel-bg);
   flex-shrink: 0;
 }
 
 .panel-title {
-  margin: 0;
-  font-size: 1.1rem;
+  font-family: "Inter", sans-serif;
+  font-size: 1.1em;
   font-weight: 600;
-  color: var(--text-primary);
+  color: inherit;
+  padding-left: 0;
 }
 
 .header-actions {
@@ -493,6 +537,28 @@ const parameters = [
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 950px) {
+  .parameter-config-panel {
+    position: fixed;
+    width: 80vw;
+    max-width: 340px;
+  }
+  
+  .setting-label {
+    font-size: 0.9rem;
+  }
+  
+  .value-input {
+    width: 50px;
+    font-size: 0.85rem;
+  }
+  
+  .panel-title {
+    font-size: 1rem;
   }
 }
 </style>
